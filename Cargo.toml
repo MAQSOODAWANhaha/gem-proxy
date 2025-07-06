@@ -1,6 +1,20 @@
 [package]
-name = "rproxy"
+name = "gemini-proxy"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [dependencies]
+pingora = { version = "0.5.0", features = ["proxy"] }
+pingora-error = "0.5.0"
+tokio = { version = "1.37.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9.33"
+serde_json = "1.0"
+async-trait = "0.1.80"
+jsonwebtoken = "9.3.0"
+prometheus = { version = "0.14.0", features = ["process"] }
+warp = "0.3.7"
+chrono = { version = "0.4.38", features = ["serde"] }
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
+uuid = { version = "1.8.0", features = ["v4", "serde"] }

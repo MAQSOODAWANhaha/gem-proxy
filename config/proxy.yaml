@@ -1,0 +1,27 @@
+server:
+  host: "0.0.0.0"
+  port: 8080
+  workers: 4
+  max_connections: 10000
+
+gemini:
+  base_url: "generativelanguage.googleapis.com:443"
+  timeout_seconds: 30
+  api_keys:
+    - id: "key1"
+      key: "AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" # Replace with your actual key
+      weight: 100
+      max_requests_per_minute: 60
+    - id: "key2"
+      key: "AIzaSyYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY" # Replace with your actual key
+      weight: 100
+      max_requests_per_minute: 60
+
+auth:
+  enabled: true
+  jwt_secret: "your-super-secret-key-that-is-long-and-secure"
+  rate_limit_per_minute: 100
+
+metrics:
+  enabled: true
+  prometheus_port: 9090
