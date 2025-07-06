@@ -15,6 +15,23 @@ pub struct ServerConfig {
     pub port: u16,
     pub workers: usize,
     pub max_connections: usize,
+    pub tls: TlsConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AcmeConfig {
+    pub enabled: bool,
+    pub domains: Vec<String>,
+    pub email: String,
+    pub directory_url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TlsConfig {
+    pub enabled: bool,
+    pub cert_path: String,
+    pub key_path: String,
+    pub acme: Option<AcmeConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

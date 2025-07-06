@@ -18,3 +18,7 @@ chrono = { version = "0.4.38", features = ["serde"] }
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
 uuid = { version = "1.8.0", features = ["v4", "serde"] }
+rcgen = "0.13.1"
+
+acme-lib = "0.5.2"
+openssl = "0.10.64"

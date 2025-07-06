@@ -3,6 +3,16 @@ server:
   port: 8080
   workers: 4
   max_connections: 10000
+  tls:
+    enabled: false
+    cert_path: "config/cert.pem"
+    key_path: "config/key.pem"
+    acme:
+      enabled: true
+      domains:
+        - "proxy.example.com"
+      email: "admin@example.com"
+      directory_url: "https://acme-v02.api.letsencrypt.org/directory"
 
 gemini:
   base_url: "generativelanguage.googleapis.com:443"

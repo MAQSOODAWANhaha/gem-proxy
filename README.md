@@ -549,6 +549,10 @@ server:
   port: 8080
   workers: 4
   max_connections: 10000
+  tls:
+    enabled: true
+    cert_path: "config/cert.pem"
+    key_path: "config/key.pem"
 
 gemini:
   base_url: "https://generativelanguage.googleapis.com"
@@ -572,6 +576,46 @@ metrics:
   enabled: true
   prometheus_port: 9090
 ```
+
+### TLS 配置说明
+
+为保证通信安全，TLS 配置为必需项。`server.tls` 字段说明如下：
+
+- `enabled`：布尔值，是否启用 TLS。必须为 `true`。
+- `cert_path`：字符串，TLS 证书文件路径（如 `.pem` 或 `.crt`）。
+- `key_path`：字符串，TLS 私钥文件路径（如 `.key`）。
+
+#### ACME 自动证书配置
+
+- `acme.enabled`：布尔值，是否启用 ACME 自动证书管理。
+- `acme.domains`：字符串列表，申请证书的域名。
+- `acme.email`：字符串，接收 Let's Encrypt 通知的邮箱。
+- `acme.directory_url`：字符串，ACME 提供商的目录 URL（如 Let's Encrypt 生产环境）。
+
+示例配置：
+
+```yaml
+server:
+  tls:
+    enabled: true
+    cert_path: "config/cert.pem"
+    key_path: "config/key.pem"
+    acme:
+      enabled: true
+      domains:
+        - "proxy.example.com"
+      email: "admin@example.com"
+      directory_url: "https://acme-v02.api.letsencrypt.org/directory"
+```
+**如何生成自签名证书（开发/测试用）：**
+
+```bash
+openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes -subj "/CN=localhost"
+```
+
+将生成的 `cert.pem` 和 `key.pem` 放入 `config/` 目录，并在 `proxy.yaml` 中配置对应路径。
+
+生产环境请使用受信任 CA 签发的证书。
 
 #### 2.3.2 Cargo.toml
 ```toml
