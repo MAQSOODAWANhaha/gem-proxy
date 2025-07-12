@@ -50,7 +50,7 @@ auth:
 # 监控指标配置
 metrics:
   enabled: true            # 是否启用监控
-  prometheus_port: 9443    # API 服务器端口
+  prometheus_port: 9443    # API 服务器端口 (HTTPS)
   tls:                     # API 服务器 TLS 配置
     enabled: true          # 启用 HTTPS
     cert_path: "certs/api-cert.pem"    # API 服务器证书路径
