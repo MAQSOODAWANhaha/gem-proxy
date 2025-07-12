@@ -85,7 +85,7 @@ pub async fn manage_acme_certificate(
     let acc = dir.account(&config.email)?;
 
     let domains_str: Vec<&str> = config.domains.iter().map(|s| s.as_str()).collect();
-    let mut ord = acc.new_order(&domains_str[0], &domains_str)?;
+    let mut ord = acc.new_order(domains_str[0], &domains_str)?;
 
     let ord_csr = loop {
         if let Some(ord_csr) = ord.confirm_validations() {

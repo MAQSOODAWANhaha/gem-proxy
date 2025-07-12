@@ -18,10 +18,10 @@ pub async fn handle_rejection(err: Rejection) -> Result<impl Reply, std::convert
     if err.is_not_found() {
         code = StatusCode::NOT_FOUND;
         message = "Not Found";
-    } else if let Some(_) = err.find::<warp::filters::body::BodyDeserializeError>() {
+    } else if err.find::<warp::filters::body::BodyDeserializeError>().is_some() {
         code = StatusCode::BAD_REQUEST;
         message = "Invalid JSON body";
-    } else if let Some(_) = err.find::<warp::reject::MethodNotAllowed>() {
+    } else if err.find::<warp::reject::MethodNotAllowed>().is_some() {
         code = StatusCode::METHOD_NOT_ALLOWED;
         message = "Method Not Allowed";
     } else {

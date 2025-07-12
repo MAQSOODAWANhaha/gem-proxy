@@ -119,7 +119,7 @@ impl ProxyConfig {
                     // 验证域名格式
                     for domain in &acme.domains {
                         if domain.is_empty() || domain.contains(' ') {
-                            return Err(format!("无效的域名: {}", domain).into());
+                            return Err(format!("无效的域名: {domain}").into());
                         }
                     }
                 }

@@ -154,7 +154,7 @@ async fn reload_config_handler(state: ConfigState) -> Result<impl Reply, Rejecti
             Ok(warp::reply::json(&response))
         }
         Err(e) => {
-            let response = ApiResponse::<()>::error(format!("重新加载配置失败: {}", e));
+            let response = ApiResponse::<()>::error(format!("重新加载配置失败: {e}"));
             Ok(warp::reply::json(&response))
         }
     }

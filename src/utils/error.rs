@@ -30,41 +30,41 @@ impl fmt::Display for ProxyError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ProxyError::Config { message, details } => {
-                write!(f, "配置错误: {}", message)?;
+                write!(f, "配置错误: {message}")?;
                 if let Some(details) = details {
-                    write!(f, " (详情: {})", details)?;
+                    write!(f, " (详情: {details})")?;
                 }
                 Ok(())
             }
             ProxyError::ApiKey { key_id, message } => {
-                write!(f, "API密钥错误 [{}]: {}", key_id, message)
+                write!(f, "API密钥错误 [{key_id}]: {message}")
             }
             ProxyError::Authentication { message } => {
-                write!(f, "认证错误: {}", message)
+                write!(f, "认证错误: {message}")
             }
             ProxyError::Network { endpoint, message } => {
-                write!(f, "网络错误 [{}]: {}", endpoint, message)
+                write!(f, "网络错误 [{endpoint}]: {message}")
             }
             ProxyError::RateLimit { client_id, limit } => {
-                write!(f, "速率限制 [{}]: 超过每分钟{}次限制", client_id, limit)
+                write!(f, "速率限制 [{client_id}]: 超过每分钟{limit}次限制")
             }
             ProxyError::Tls { message, cert_path } => {
-                write!(f, "TLS错误: {}", message)?;
+                write!(f, "TLS错误: {message}")?;
                 if let Some(path) = cert_path {
-                    write!(f, " (证书路径: {})", path)?;
+                    write!(f, " (证书路径: {path})")?;
                 }
                 Ok(())
             }
             ProxyError::Acme { domain, message } => {
-                write!(f, "ACME证书错误 [{}]: {}", domain, message)
+                write!(f, "ACME证书错误 [{domain}]: {message}")
             }
             ProxyError::HealthCheck { check_name, message } => {
-                write!(f, "健康检查失败 [{}]: {}", check_name, message)
+                write!(f, "健康检查失败 [{check_name}]: {message}")
             }
             ProxyError::Internal { message, source } => {
-                write!(f, "内部错误: {}", message)?;
+                write!(f, "内部错误: {message}")?;
                 if let Some(source) = source {
-                    write!(f, " (来源: {})", source)?;
+                    write!(f, " (来源: {source})")?;
                 }
                 Ok(())
             }
@@ -268,7 +268,7 @@ pub mod utils {
     #[allow(dead_code)]
     pub fn map_io_error(err: std::io::Error, component: &str) -> ErrorContext {
         let error = ProxyError::Internal {
-            message: format!("IO错误: {}", err),
+            message: format!("IO错误: {err}"),
             source: Some(component.to_string()),
         };
         ErrorContext::new(error, ErrorSeverity::Medium, component)

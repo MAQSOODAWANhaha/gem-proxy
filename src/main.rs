@@ -212,6 +212,9 @@ async fn start_api_server(
             }
         });
     
+    // 获取 API 服务器的配置
+    let api_config = config_state.get_config().await;
+    
     // 配置API路由
     let config_routes = crate::api::config::config_routes(config_state);
     
@@ -224,9 +227,6 @@ async fn start_api_server(
         .with(crate::api::handlers::cors())
         .with(crate::api::handlers::with_logging())
         .recover(crate::api::handlers::handle_rejection);
-    
-    // 获取 API 服务器的配置
-    let api_config = config_state.get_config().await;
     
     // 检查是否启用 API 服务器 TLS
     if let Some(api_tls) = &api_config.metrics.tls {

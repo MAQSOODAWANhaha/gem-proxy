@@ -16,8 +16,8 @@ pub struct AcmeChallengeService {
 #[async_trait]
 impl ProxyHttp for AcmeChallengeService {
     type CTX = ();
-    fn new_ctx(&self) -> () {
-        ()
+    fn new_ctx(&self) {
+        
     }
 
     async fn request_filter(&self, session: &mut Session, _ctx: &mut Self::CTX) -> Result<bool> {
