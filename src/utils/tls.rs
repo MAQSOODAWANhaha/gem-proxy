@@ -14,12 +14,21 @@ pub fn generate_self_signed_cert_if_not_exists(
     key_path: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if Path::new(cert_path).exists() && Path::new(key_path).exists() {
-        tracing::info!("Certificate and key already exist. Skipping generation.");
+        tracing::info!("Certificate and key already exist at {} and {}", cert_path, key_path);
         return Ok(());
     }
 
-    tracing::info!("Generating self-signed certificate...");
-    let subject_alt_names = vec!["localhost".to_string(), "127.0.0.1".to_string()];
+    tracing::info!("Generating self-signed certificate for HTTPS...");
+    
+    // 生成更全面的自签证书，包含多个 SAN
+    let subject_alt_names = vec![
+        "localhost".to_string(),
+        "127.0.0.1".to_string(),
+        "::1".to_string(),                    // IPv6 localhost
+        "gemini-proxy".to_string(),           // 容器名
+        "gemini-proxy.local".to_string(),     // 本地域名
+        "proxy.local".to_string(),            // 简短别名
+    ];
 
     let cert = generate_simple_self_signed(subject_alt_names)?;
 
@@ -27,17 +36,34 @@ pub fn generate_self_signed_cert_if_not_exists(
     let cert_pem = cert.cert.pem();
     let key_pem = cert.key_pair.serialize_pem();
 
+    // 确保目录存在
     if let Some(parent) = Path::new(cert_path).parent() {
         fs::create_dir_all(parent)?;
+        tracing::debug!("Created certificate directory: {:?}", parent);
     }
     if let Some(parent) = Path::new(key_path).parent() {
         fs::create_dir_all(parent)?;
+        tracing::debug!("Created key directory: {:?}", parent);
     }
 
+    // 写入证书和私钥
     fs::write(cert_path, cert_pem)?;
     fs::write(key_path, key_pem)?;
 
-    tracing::info!("Self-signed certificate and key have been generated and saved.");
+    // 设置适当的文件权限（私钥只读）
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(key_path)?.permissions();
+        perms.set_mode(0o600); // 只有所有者可读写
+        fs::set_permissions(key_path, perms)?;
+        tracing::debug!("Set restrictive permissions on private key");
+    }
+
+    tracing::info!("✅ Self-signed certificate generated successfully!");
+    tracing::info!("📄 Certificate: {}", cert_path);
+    tracing::info!("🔑 Private key: {}", key_path);
+    tracing::info!("🌐 Valid for: localhost, 127.0.0.1, ::1, gemini-proxy, *.local");
 
     Ok(())
 }

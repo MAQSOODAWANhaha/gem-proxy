@@ -1,21 +1,21 @@
 server:
   host: "0.0.0.0"
-  port: 8080
+  port: 8443
   workers: 4
   max_connections: 10000
   tls:
-    enabled: false
-    cert_path: "config/cert.pem"
-    key_path: "config/key.pem"
+    enabled: true
+    cert_path: "certs/cert.pem"
+    key_path: "certs/key.pem"
     acme:
-      enabled: true
+      enabled: false  # 默认使用自签证书，生产环境可启用
       domains:
         - "proxy.example.com"
       email: "admin@example.com"
-      directory_url: "https://acme-v02.api.letsencrypt.org/directory"
+      directory_url: "https://acme-staging-v02.api.letsencrypt.org/directory"
 
 gemini:
-  base_url: "generativelanguage.googleapis.com:443"
+  base_url: "https://generativelanguage.googleapis.com"
   timeout_seconds: 30
   api_keys:
     - id: "key1"
@@ -34,4 +34,8 @@ auth:
 
 metrics:
   enabled: true
-  prometheus_port: 9090
+  prometheus_port: 9443  # HTTPS 端口
+  tls:
+    enabled: true
+    cert_path: "certs/api-cert.pem"
+    key_path: "certs/api-key.pem"

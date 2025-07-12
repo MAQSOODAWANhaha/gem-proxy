@@ -1,0 +1,107 @@
+# Gemini API 代理服务配置示例文件
+# 复制此文件为 proxy.yaml 并根据您的需求进行修改
+
+# 服务器配置
+server:
+  host: "0.0.0.0"          # 监听地址，0.0.0.0 表示监听所有接口
+  port: 8443               # HTTPS 监听端口
+  workers: 4               # 工作线程数，建议设置为 CPU 核心数
+  max_connections: 1000    # 最大并发连接数
+  
+  # TLS 配置
+  tls:
+    enabled: true          # 默认启用 TLS
+    cert_path: "certs/cert.pem"    # 证书文件路径
+    key_path: "certs/key.pem"      # 私钥文件路径
+    
+    # ACME 自动证书配置（可选）
+    acme:
+      enabled: false       # 是否启用 ACME 自动证书
+      domains:             # 域名列表
+        - "api.example.com"
+        - "proxy.example.com"
+      email: "admin@example.com"          # 联系邮箱
+      directory_url: "https://acme-v02.api.letsencrypt.org/directory"  # ACME 目录 URL
+      # 测试环境使用: "https://acme-staging-v02.api.letsencrypt.org/directory"
+
+# Gemini API 配置
+gemini:
+  # API 密钥配置（支持多个密钥负载均衡）
+  api_keys:
+    - id: "primary"        # 密钥标识符
+      key: "your-gemini-api-key-1"       # 实际的 API 密钥
+      weight: 2            # 权重，影响负载分配
+      max_requests_per_minute: 100       # 每分钟最大请求数
+    
+    - id: "backup"         # 备用密钥
+      key: "your-gemini-api-key-2"
+      weight: 1
+      max_requests_per_minute: 50
+  
+  base_url: "https://generativelanguage.googleapis.com"  # Gemini API 基础 URL
+  timeout_seconds: 30      # 请求超时时间（秒）
+
+# 认证配置
+auth:
+  enabled: true            # 是否启用认证
+  jwt_secret: "your-super-secret-jwt-key-at-least-32-characters-long"  # JWT 密钥（至少32字符）
+  rate_limit_per_minute: 60  # 每分钟请求限制
+
+# 监控指标配置
+metrics:
+  enabled: true            # 是否启用监控
+  prometheus_port: 9443    # API 服务器端口
+  tls:                     # API 服务器 TLS 配置
+    enabled: true          # 启用 HTTPS
+    cert_path: "certs/api-cert.pem"    # API 服务器证书路径
+    key_path: "certs/api-key.pem"      # API 服务器私钥路径
+
+# 示例：完整的生产环境配置
+# server:
+#   host: "0.0.0.0"
+#   port: 443
+#   workers: 8
+#   max_connections: 5000
+#   tls:
+#     enabled: true
+#     cert_path: "/etc/ssl/certs/proxy.crt"
+#     key_path: "/etc/ssl/private/proxy.key"
+#     acme:
+#       enabled: true
+#       domains:
+#         - "api.yourcompany.com"
+#       email: "ssl@yourcompany.com"
+#       directory_url: "https://acme-v02.api.letsencrypt.org/directory"
+# 
+# gemini:
+#   api_keys:
+#     - id: "prod-key-1"
+#       key: "AIzaSyD..."
+#       weight: 3
+#       max_requests_per_minute: 200
+#     - id: "prod-key-2"
+#       key: "AIzaSyE..."
+#       weight: 2
+#       max_requests_per_minute: 150
+#     - id: "backup-key"
+#       key: "AIzaSyF..."
+#       weight: 1
+#       max_requests_per_minute: 100
+#   base_url: "https://generativelanguage.googleapis.com"
+#   timeout_seconds: 60
+# 
+# auth:
+#   enabled: true
+#   jwt_secret: "production-super-secure-secret-key-change-this-in-production"
+#   rate_limit_per_minute: 120
+# 
+# metrics:
+#   enabled: true
+#   prometheus_port: 9090
+
+# 注意事项：
+# 1. JWT 密钥必须至少 32 个字符长度
+# 2. API 密钥需要从 Google AI Studio 获取
+# 3. 生产环境建议启用 TLS
+# 4. 根据实际负载调整 workers 和 max_connections
+# 5. 定期轮换 API 密钥以提高安全性

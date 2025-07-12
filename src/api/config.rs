@@ -66,7 +66,7 @@ impl ConfigState {
 
     fn validate_config(&self, config: &ProxyConfig) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // 基本验证
-        if config.server.port == 0 || config.server.port > 65535 {
+        if config.server.port == 0 {
             return Err("无效的服务器端口".into());
         }
 

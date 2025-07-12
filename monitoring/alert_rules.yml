@@ -1,0 +1,57 @@
+# Prometheus 告警规则
+groups:
+  - name: gemini-proxy-alerts
+    rules:
+      - alert: GeminiProxyDown
+        expr: up{job="gemini-proxy"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Gemini Proxy 服务下线"
+          description: "Gemini Proxy 服务已经下线超过1分钟"
+
+      - alert: HighErrorRate
+        expr: rate(gemini_proxy_requests_total{status="error"}[5m]) / rate(gemini_proxy_requests_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "错误率过高"
+          description: "过去5分钟内错误率超过10%"
+
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(gemini_proxy_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "响应时间过长"
+          description: "95%的请求响应时间超过2秒"
+
+      - alert: ApiKeyFailures
+        expr: increase(gemini_proxy_api_key_failures_total[5m]) > 10
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API密钥故障频繁"
+          description: "过去5分钟内API密钥故障超过10次"
+
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes / 1024 / 1024 > 500
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "内存使用过高"
+          description: "内存使用超过500MB"
+
+      - alert: CertificateExpiring
+        expr: (gemini_proxy_certificate_expiry_seconds - time()) / 86400 < 7
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "TLS证书即将过期"
+          description: "TLS证书将在7天内过期"

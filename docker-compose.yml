@@ -1,0 +1,89 @@
+# Docker Compose 配置文件
+version: '3.8'
+
+services:
+  gemini-proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gemini-proxy
+    restart: unless-stopped
+    ports:
+      - "8443:8443"   # HTTPS 主服务端口
+      - "9443:9443"   # HTTPS 监控和API端口
+    volumes:
+      - ./config:/app/config:ro
+      - ./logs:/app/logs
+      - ./certs:/app/certs
+    environment:
+      - RUST_LOG=info
+      - CONFIG_PATH=/app/config/proxy.yaml
+    networks:
+      - gemini-network
+    depends_on:
+      - prometheus
+      - grafana
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gemini-proxy.rule=Host(`proxy.example.com`)"
+      - "traefik.http.routers.gemini-proxy.tls=true"
+      - "traefik.http.routers.gemini-proxy.tls.certresolver=letsencrypt"
+      - "traefik.http.services.gemini-proxy.loadbalancer.server.port=8443"
+      - "traefik.http.services.gemini-proxy.loadbalancer.server.scheme=https"
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: gemini-prometheus
+    restart: unless-stopped
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - gemini-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: gemini-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - gemini-network
+    depends_on:
+      - prometheus
+
+  redis:
+    image: redis:7-alpine
+    container_name: gemini-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - gemini-network
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  redis_data:
+
+networks:
+  gemini-network:
+    driver: bridge

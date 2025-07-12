@@ -60,12 +60,144 @@ pub struct AuthConfig {
 pub struct MetricsConfig {
     pub enabled: bool,
     pub prometheus_port: u16,
+    pub tls: Option<TlsConfig>,  // API 服务器的 TLS 配置
 }
 
 impl ProxyConfig {
     pub fn from_file(path: &str) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let content = fs::read_to_string(path)?;
         let config: ProxyConfig = serde_yaml::from_str(&content)?;
+        
+        // 配置验证
+        config.validate()?;
+        
         Ok(config)
+    }
+    
+    /// 配置验证
+    pub fn validate(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        // 服务器配置验证
+        if self.server.port == 0 {
+            return Err("服务器端口不能为0".into());
+        }
+        
+        if self.server.workers == 0 {
+            return Err("工作线程数不能为0".into());
+        }
+        
+        if self.server.max_connections == 0 {
+            return Err("最大连接数不能为0".into());
+        }
+        
+        // TLS配置验证
+        if self.server.tls.enabled {
+            if self.server.tls.cert_path.is_empty() {
+                return Err("启用TLS时必须指定证书路径".into());
+            }
+            if self.server.tls.key_path.is_empty() {
+                return Err("启用TLS时必须指定私钥路径".into());
+            }
+            
+            // ACME配置验证
+            if let Some(acme) = &self.server.tls.acme {
+                if acme.enabled {
+                    if acme.domains.is_empty() {
+                        return Err("启用ACME时必须指定域名".into());
+                    }
+                    if acme.email.is_empty() {
+                        return Err("启用ACME时必须指定邮箱".into());
+                    }
+                    if acme.directory_url.is_empty() {
+                        return Err("启用ACME时必须指定目录URL".into());
+                    }
+                    
+                    // 验证邮箱格式
+                    if !acme.email.contains('@') {
+                        return Err("ACME邮箱格式无效".into());
+                    }
+                    
+                    // 验证域名格式
+                    for domain in &acme.domains {
+                        if domain.is_empty() || domain.contains(' ') {
+                            return Err(format!("无效的域名: {}", domain).into());
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Gemini配置验证
+        if self.gemini.api_keys.is_empty() {
+            return Err("必须配置至少一个Gemini API密钥".into());
+        }
+        
+        if self.gemini.base_url.is_empty() {
+            return Err("Gemini基础URL不能为空".into());
+        }
+        
+        if self.gemini.timeout_seconds == 0 {
+            return Err("Gemini超时时间不能为0".into());
+        }
+        
+        // API密钥配置验证
+        for (i, api_key) in self.gemini.api_keys.iter().enumerate() {
+            if api_key.id.is_empty() {
+                return Err(format!("第{}个API密钥的ID不能为空", i + 1).into());
+            }
+            if api_key.key.is_empty() {
+                return Err(format!("第{}个API密钥的key不能为空", i + 1).into());
+            }
+            if api_key.weight == 0 {
+                return Err(format!("第{}个API密钥的权重不能为0", i + 1).into());
+            }
+            if api_key.max_requests_per_minute == 0 {
+                return Err(format!("第{}个API密钥的每分钟最大请求数不能为0", i + 1).into());
+            }
+        }
+        
+        // 检查API密钥ID唯一性
+        let mut seen_ids = std::collections::HashSet::new();
+        for api_key in &self.gemini.api_keys {
+            if !seen_ids.insert(&api_key.id) {
+                return Err(format!("API密钥ID重复: {}", api_key.id).into());
+            }
+        }
+        
+        // 认证配置验证
+        if self.auth.enabled {
+            if self.auth.jwt_secret.is_empty() {
+                return Err("启用认证时JWT密钥不能为空".into());
+            }
+            if self.auth.jwt_secret.len() < 32 {
+                return Err("JWT密钥长度至少需要32个字符".into());
+            }
+            if self.auth.rate_limit_per_minute == 0 {
+                return Err("速率限制值不能为0".into());
+            }
+        }
+        
+        // 监控配置验证
+        if self.metrics.enabled {
+            if self.metrics.prometheus_port == 0 {
+                return Err("Prometheus端口不能为0".into());
+            }
+            if self.metrics.prometheus_port == self.server.port {
+                return Err("Prometheus端口不能与服务器端口相同".into());
+            }
+            
+            // API 服务器 TLS 配置验证
+            if let Some(api_tls) = &self.metrics.tls {
+                if api_tls.enabled {
+                    if api_tls.cert_path.is_empty() {
+                        return Err("API服务器启用TLS时必须指定证书路径".into());
+                    }
+                    if api_tls.key_path.is_empty() {
+                        return Err("API服务器启用TLS时必须指定私钥路径".into());
+                    }
+                }
+            }
+        }
+        
+        Ok(())
     }
 }
