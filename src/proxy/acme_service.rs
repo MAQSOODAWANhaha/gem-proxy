@@ -1,11 +1,11 @@
 // src/proxy/acme_service.rs
 use async_trait::async_trait;
+use pingora::http::ResponseHeader;
 use pingora::proxy::{ProxyHttp, Session};
 use pingora::upstreams::peer::HttpPeer;
-use pingora_error::{Result, Error, ErrorType};
+use pingora_error::{Error, ErrorType, Result};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
-use pingora::http::ResponseHeader;
 
 pub type AcmeChallengeState = Arc<RwLock<HashMap<String, String>>>;
 
@@ -16,7 +16,9 @@ pub struct AcmeChallengeService {
 #[async_trait]
 impl ProxyHttp for AcmeChallengeService {
     type CTX = ();
-    fn new_ctx(&self) -> () { () }
+    fn new_ctx(&self) -> () {
+        ()
+    }
 
     async fn request_filter(&self, session: &mut Session, _ctx: &mut Self::CTX) -> Result<bool> {
         let path = session.req_header().uri.path();
@@ -42,7 +44,11 @@ impl ProxyHttp for AcmeChallengeService {
         Ok(false) // 如果路径不匹配，则继续到下一个服务。
     }
 
-    async fn upstream_peer(&self, _session: &mut Session, _ctx: &mut Self::CTX) -> Result<Box<HttpPeer>> {
+    async fn upstream_peer(
+        &self,
+        _session: &mut Session,
+        _ctx: &mut Self::CTX,
+    ) -> Result<Box<HttpPeer>> {
         // This service does not proxy requests, so this should never be called.
         let e = Error::new(ErrorType::InternalError);
         Err(e)

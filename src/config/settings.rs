@@ -63,7 +63,7 @@ pub struct MetricsConfig {
 }
 
 impl ProxyConfig {
-    pub fn from_file(path: &str) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn from_file(path: &str) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let content = fs::read_to_string(path)?;
         let config: ProxyConfig = serde_yaml::from_str(&content)?;
         Ok(config)

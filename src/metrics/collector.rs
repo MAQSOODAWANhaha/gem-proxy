@@ -1,8 +1,7 @@
 // src/metrics/collector.rs
-use prometheus::{Encoder, TextEncoder, CounterVec, HistogramVec, Opts, Registry};
+use prometheus::{CounterVec, Encoder, HistogramVec, Opts, Registry, TextEncoder};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-
 
 pub struct MetricsCollector {
     registry: Registry,

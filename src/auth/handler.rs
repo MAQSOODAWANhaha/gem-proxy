@@ -1,11 +1,11 @@
 // src/auth/handler.rs
+use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+use pingora::protocols::l4::socket::SocketAddr;
+use pingora::proxy::Session;
+use pingora_error::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use pingora::proxy::Session;
-use pingora_error::Result;
-use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
-use pingora::protocols::l4::socket::SocketAddr;
 
 pub struct AuthHandler {
     jwt_secret: String,
@@ -29,7 +29,9 @@ impl AuthHandler {
     }
 
     pub async fn validate_request(&self, session: &mut Session) -> Result<bool> {
-        let auth_header = session.req_header().headers
+        let auth_header = session
+            .req_header()
+            .headers
             .get("authorization")
             .and_then(|h| h.to_str().ok())
             .and_then(|s| s.strip_prefix("Bearer "));
@@ -37,7 +39,7 @@ impl AuthHandler {
         if let Some(token) = auth_header {
             let key = DecodingKey::from_secret(self.jwt_secret.as_ref());
             let validation = Validation::new(Algorithm::HS256);
-            
+
             match decode::<serde_json::Value>(token, &key, &validation) {
                 Ok(_) => Ok(true),
                 Err(_) => Ok(false),
@@ -50,7 +52,7 @@ impl AuthHandler {
     pub async fn check_rate_limit(&self, session: &mut Session) -> Result<bool> {
         let client_id = self.get_client_id(session).await;
         let mut limits = self.rate_limits.write().await;
-        
+
         let limit = limits.entry(client_id).or_insert(RateLimit {
             count: 0,
             reset_time: std::time::Instant::now(),
@@ -70,11 +72,12 @@ impl AuthHandler {
     }
 
     async fn get_client_id(&self, session: &mut Session) -> String {
-        session.client_addr().map(|addr| {
-            match addr {
+        session
+            .client_addr()
+            .map(|addr| match addr {
                 SocketAddr::Inet(inet_addr) => inet_addr.ip().to_string(),
                 SocketAddr::Unix(_) => "unix_socket".to_string(),
-            }
-        }).unwrap_or_else(|| "unknown".to_string())
+            })
+            .unwrap_or_else(|| "unknown".to_string())
     }
 }

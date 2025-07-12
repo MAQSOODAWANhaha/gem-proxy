@@ -1,16 +1,16 @@
 // src/proxy/service.rs
+use crate::auth::AuthHandler;
+use crate::config::GeminiConfig;
+use crate::load_balancer::KeyManager;
+use crate::metrics::MetricsCollector;
 use async_trait::async_trait;
-use pingora::proxy::{ProxyHttp, Session};
-use pingora::upstreams::peer::HttpPeer;
-use pingora_error::{Result, Error};
+use chrono::Utc;
 use pingora::http::ResponseHeader;
 use pingora::protocols::l4::socket::SocketAddr;
+use pingora::proxy::{ProxyHttp, Session};
+use pingora::upstreams::peer::HttpPeer;
+use pingora_error::{Error, Result};
 use std::sync::Arc;
-use chrono::Utc;
-use crate::load_balancer::KeyManager;
-use crate::auth::AuthHandler;
-use crate::metrics::MetricsCollector;
-use crate::config::GeminiConfig;
 
 pub struct ProxyCtx {
     pub api_key_id: Option<String>,
@@ -65,7 +65,9 @@ impl ProxyHttp for GeminiProxyService {
         }
 
         if let Some(api_key) = self.key_manager.get_next_key().await {
-            session.req_header_mut().insert_header("x-goog-api-key", &api_key.key)?;
+            session
+                .req_header_mut()
+                .insert_header("x-goog-api-key", &api_key.key)?;
             ctx.api_key_id = Some(api_key.id.clone());
             self.metrics.increment_request_count(&api_key.id).await;
         } else {
@@ -76,20 +78,37 @@ impl ProxyHttp for GeminiProxyService {
         Ok(false)
     }
 
-    async fn upstream_peer(&self, _session: &mut Session, _ctx: &mut Self::CTX) -> Result<Box<HttpPeer>> {
+    async fn upstream_peer(
+        &self,
+        _session: &mut Session,
+        _ctx: &mut Self::CTX,
+    ) -> Result<Box<HttpPeer>> {
         let peer = Box::new(HttpPeer::new(
             self.gemini_config.base_url.clone(),
             true, // HTTPS
-            self.gemini_config.base_url.split(':').next().unwrap_or("").to_string(),
+            self.gemini_config
+                .base_url
+                .split(':')
+                .next()
+                .unwrap_or("")
+                .to_string(),
         ));
         Ok(peer)
     }
 
-    async fn response_filter(&self, _session: &mut Session, _response_header: &mut ResponseHeader, ctx: &mut Self::CTX) -> Result<()> {
-        let status = _session.response_written().map(|r| r.status.as_u16()).unwrap_or(0);
+    async fn response_filter(
+        &self,
+        _session: &mut Session,
+        _response_header: &mut ResponseHeader,
+        ctx: &mut Self::CTX,
+    ) -> Result<()> {
+        let status = _session
+            .response_written()
+            .map(|r| r.status.as_u16())
+            .unwrap_or(0);
         let response_time = ctx.request_start_time.map_or_else(
             || std::time::Duration::from_secs(0),
-            |start| (Utc::now() - start).to_std().unwrap_or_default()
+            |start| (Utc::now() - start).to_std().unwrap_or_default(),
         );
 
         self.metrics.record_response(status, response_time).await;
@@ -105,13 +124,16 @@ impl ProxyHttp for GeminiProxyService {
     }
 
     async fn logging(&self, session: &mut Session, _e: Option<&Error>, ctx: &mut Self::CTX) {
-        let response_time = ctx.request_start_time.map_or(0, |start| (Utc::now() - start).num_milliseconds());
-        let client_ip = session.client_addr().map(|addr| {
-            match addr {
+        let response_time = ctx
+            .request_start_time
+            .map_or(0, |start| (Utc::now() - start).num_milliseconds());
+        let client_ip = session
+            .client_addr()
+            .map(|addr| match addr {
                 SocketAddr::Inet(inet_addr) => inet_addr.ip().to_string(),
                 SocketAddr::Unix(_) => "unix_socket".to_string(),
-            }
-        }).unwrap_or_else(|| "unknown".to_string());
+            })
+            .unwrap_or_else(|| "unknown".to_string());
 
         tracing::info!(
             method = %session.req_header().method,

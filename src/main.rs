@@ -1,34 +1,39 @@
 // src/main.rs
-use pingora::server::Server;
-use pingora::proxy::http_proxy_service;
-use std::sync::{Arc, RwLock};
-use std::collections::HashMap;
-use crate::config::ProxyConfig;
-use crate::proxy::GeminiProxyService;
-use crate::proxy::acme_service::{AcmeChallengeService, AcmeChallengeState};
-use crate::load_balancer::KeyManager;
 use crate::auth::AuthHandler;
+use crate::config::ProxyConfig;
+use crate::load_balancer::KeyManager;
 use crate::metrics::MetricsCollector;
-use crate::utils::tls::{generate_self_signed_cert_if_not_exists, acme_renewal_loop};
+use crate::proxy::acme_service::{AcmeChallengeService, AcmeChallengeState};
+use crate::proxy::GeminiProxyService;
+use crate::utils::health_check::HealthChecker;
+use crate::api::config::ConfigState;
+use crate::utils::tls::{acme_renewal_loop, generate_self_signed_cert_if_not_exists};
 use chrono::Utc;
+use pingora::proxy::http_proxy_service;
+use pingora::server::Server;
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 use tokio::runtime::Builder;
 
-mod config;
-mod proxy;
-mod load_balancer;
+mod api;
 mod auth;
+mod config;
+mod load_balancer;
 mod metrics;
+mod proxy;
 mod utils;
 
 fn main() {
     tracing_subscriber::fmt::init();
 
-    let config = ProxyConfig::from_file("config/proxy.yaml")
-        .expect("Failed to load configuration");
+    let config = ProxyConfig::from_file("config/proxy.yaml").expect("Failed to load configuration");
 
     let key_manager = Arc::new(KeyManager::new(
-        config.gemini.api_keys.iter().map(|k| {
-            load_balancer::ApiKey {
+        config
+            .gemini
+            .api_keys
+            .iter()
+            .map(|k| load_balancer::ApiKey {
                 id: k.id.clone(),
                 key: k.key.clone(),
                 weight: k.weight,
@@ -37,8 +42,8 @@ fn main() {
                 last_reset: Utc::now(),
                 is_active: true,
                 failure_count: 0,
-            }
-        }).collect()
+            })
+            .collect(),
     ));
 
     let auth_handler = Arc::new(AuthHandler::new(
@@ -51,10 +56,13 @@ fn main() {
     if config.metrics.enabled {
         let metrics_clone = metrics.clone();
         let metrics_port = config.metrics.prometheus_port;
+        let total_keys = config.gemini.api_keys.len();
+        let config_state = ConfigState::new(config.clone(), "config/proxy.yaml".to_string());
+        
         std::thread::spawn(move || {
             let runtime = Builder::new_current_thread().enable_all().build().unwrap();
             runtime.block_on(async move {
-                start_metrics_server(metrics_clone, metrics_port).await;
+                start_api_server(metrics_clone, metrics_port, total_keys, config_state).await;
             });
         });
     }
@@ -67,12 +75,15 @@ fn main() {
         if let Some(acme_config) = &tls_config.acme {
             if acme_config.enabled {
                 let challenge_state: AcmeChallengeState = Arc::new(RwLock::new(HashMap::new()));
-                
-                let acme_challenge_service = AcmeChallengeService { challenge_state: challenge_state.clone() };
-                let mut acme_http_service = http_proxy_service(&server.configuration, acme_challenge_service);
+
+                let acme_challenge_service = AcmeChallengeService {
+                    challenge_state: challenge_state.clone(),
+                };
+                let mut acme_http_service =
+                    http_proxy_service(&server.configuration, acme_challenge_service);
                 acme_http_service.add_tcp("0.0.0.0:80");
                 server.add_service(acme_http_service);
-                
+
                 let acme_conf_clone = acme_config.clone();
                 let cert_path_clone = tls_config.cert_path.clone();
                 let key_path_clone = tls_config.key_path.clone();
@@ -80,7 +91,13 @@ fn main() {
                 std::thread::spawn(move || {
                     let runtime = Builder::new_current_thread().enable_all().build().unwrap();
                     runtime.block_on(async move {
-                        acme_renewal_loop(&acme_conf_clone, challenge_state, &cert_path_clone, &key_path_clone).await;
+                        acme_renewal_loop(
+                            &acme_conf_clone,
+                            challenge_state,
+                            &cert_path_clone,
+                            &key_path_clone,
+                        )
+                        .await;
                     });
                 });
             }
@@ -90,7 +107,8 @@ fn main() {
         }
     }
 
-    let service = GeminiProxyService::new(key_manager, auth_handler, metrics.clone(), gemini_config);
+    let service =
+        GeminiProxyService::new(key_manager, auth_handler, metrics.clone(), gemini_config);
     let mut proxy_service = http_proxy_service(&server.configuration, service);
     let addr = format!("{}:{}", config.server.host, config.server.port);
 
@@ -106,9 +124,51 @@ fn main() {
     server.run_forever();
 }
 
-async fn start_metrics_server(metrics: Arc<MetricsCollector>, port: u16) {
+async fn start_api_server(
+    metrics: Arc<MetricsCollector>, 
+    port: u16, 
+    total_keys: usize,
+    config_state: ConfigState,
+) {
     use warp::Filter;
-    let metrics_route = warp::path("metrics").map(move || metrics.get_metrics());
-    tracing::info!("Metrics server running on 127.0.0.1:{}", port);
-    warp::serve(metrics_route).run(([127, 0, 0, 1], port)).await;
+    
+    // Setup health checker
+    let health_checker = HealthChecker::new(total_keys, total_keys, true);
+    let health_checker = Arc::new(health_checker);
+    
+    // Metrics route
+    let metrics_route = warp::path("metrics")
+        .map(move || metrics.get_metrics());
+    
+    // Health check route
+    let health_checker_clone = health_checker.clone();
+    let health_route = warp::path("health")
+        .and(warp::get())
+        .and_then(move || {
+            let checker = health_checker_clone.clone();
+            async move {
+                let health_status = checker.check_health().await;
+                let json = serde_json::to_string(&health_status).unwrap();
+                Result::<_, warp::Rejection>::Ok(warp::reply::with_header(
+                    json,
+                    "content-type",
+                    "application/json",
+                ))
+            }
+        });
+    
+    // 配置API路由
+    let config_routes = crate::api::config::config_routes(config_state);
+    
+    // 组合所有路由
+    let routes = metrics_route
+        .or(health_route)
+        .or(config_routes)
+        .with(crate::api::handlers::cors())
+        .with(crate::api::handlers::with_logging())
+        .recover(crate::api::handlers::handle_rejection);
+    
+    tracing::info!("API server running on 127.0.0.1:{}", port);
+    tracing::info!("Available endpoints: /metrics, /health, /api/config");
+    warp::serve(routes).run(([127, 0, 0, 1], port)).await;
 }

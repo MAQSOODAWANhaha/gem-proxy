@@ -1,13 +1,13 @@
 // src/utils/tls.rs
-use rcgen::generate_simple_self_signed;
-use std::path::Path;
-use std::fs;
-use std::time::Duration;
-use crate::proxy::acme_service::AcmeChallengeState;
 use crate::config::AcmeConfig;
-use acme_lib::{Directory, DirectoryUrl};
+use crate::proxy::acme_service::AcmeChallengeState;
 use acme_lib::persist::FilePersist;
+use acme_lib::{Directory, DirectoryUrl};
 use openssl::x509::X509;
+use rcgen::generate_simple_self_signed;
+use std::fs;
+use std::path::Path;
+use std::time::Duration;
 
 pub fn generate_self_signed_cert_if_not_exists(
     cert_path: &str,
@@ -20,7 +20,7 @@ pub fn generate_self_signed_cert_if_not_exists(
 
     tracing::info!("Generating self-signed certificate...");
     let subject_alt_names = vec!["localhost".to_string(), "127.0.0.1".to_string()];
-    
+
     let cert = generate_simple_self_signed(subject_alt_names)?;
 
     // rcgen 0.13.1: use cert.serialize_pem() and cert.key_pair.serialize_pem()
@@ -48,7 +48,10 @@ pub async fn manage_acme_certificate(
     cert_path: &str,
     key_path: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    tracing::info!("Starting ACME certificate management for domains: {:?}", &config.domains);
+    tracing::info!(
+        "Starting ACME certificate management for domains: {:?}",
+        &config.domains
+    );
 
     let url = DirectoryUrl::Other(&config.directory_url);
     let persist = FilePersist::new(".");
@@ -68,8 +71,8 @@ pub async fn manage_acme_certificate(
 
         let token = chall.http_token();
         // acme-lib 0.5.2: The key authorization is the token for HTTP challenge
-        let key_auth = token.to_string(); 
-        
+        let key_auth = token.to_string();
+
         {
             let mut state = challenge_state.write().unwrap();
             state.insert(token.to_string(), key_auth.to_string());
@@ -85,7 +88,7 @@ pub async fn manage_acme_certificate(
     // acme-lib 0.5.2: finalize_pkey needs private key, public key, and timeout
     let ord_cert = ord_csr.finalize_pkey(pkey.0, pkey.1, 5000)?;
     let cert = ord_cert.download_and_save_cert()?;
-    
+
     fs::write(cert_path, cert.certificate())?;
     fs::write(key_path, cert.private_key())?;
 
@@ -103,17 +106,20 @@ fn needs_renewal(cert_path: &str) -> Result<bool, Box<dyn std::error::Error>> {
 
     let cert_bytes = fs::read(cert_path)?;
     let cert = X509::from_pem(&cert_bytes)?;
-    
+
     let not_after = cert.not_after();
     let now = openssl::asn1::Asn1Time::days_from_now(0)?;
-    
+
     let diff = now.diff(not_after)?;
-    
+
     if diff.days < RENEW_BEFORE_DAYS {
         tracing::info!("Certificate expires in {} days, renewal needed.", diff.days);
         Ok(true)
     } else {
-        tracing::info!("Certificate is valid for {} more days. No renewal needed.", diff.days);
+        tracing::info!(
+            "Certificate is valid for {} more days. No renewal needed.",
+            diff.days
+        );
         Ok(false)
     }
 }
@@ -129,22 +135,31 @@ pub async fn acme_renewal_loop(
         match needs_renewal(cert_path) {
             Ok(true) => {
                 tracing::info!("Proceeding with ACME certificate issuance/renewal.");
-                if let Err(e) = manage_acme_certificate(config, challenge_state.clone(), cert_path, key_path).await {
-                    tracing::error!("ACME certificate management failed: {}. Retrying in 1 hour.", e);
+                if let Err(e) =
+                    manage_acme_certificate(config, challenge_state.clone(), cert_path, key_path)
+                        .await
+                {
+                    tracing::error!(
+                        "ACME certificate management failed: {}. Retrying in 1 hour.",
+                        e
+                    );
                     tokio::time::sleep(Duration::from_secs(3600)).await;
                     continue;
                 }
-            },
+            }
             Ok(false) => {
                 tracing::info!("Certificate is up to date.");
-            },
+            }
             Err(e) => {
-                tracing::error!("Failed to check certificate status: {}. Retrying in 1 hour.", e);
+                tracing::error!(
+                    "Failed to check certificate status: {}. Retrying in 1 hour.",
+                    e
+                );
                 tokio::time::sleep(Duration::from_secs(3600)).await;
                 continue;
             }
         }
-        
+
         tracing::info!("Next certificate renewal check in 24 hours.");
         tokio::time::sleep(Duration::from_secs(24 * 3600)).await;
     }

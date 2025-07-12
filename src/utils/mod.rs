@@ -1,2 +1,2 @@
-pub mod tls;
 pub mod health_check;
+pub mod tls;

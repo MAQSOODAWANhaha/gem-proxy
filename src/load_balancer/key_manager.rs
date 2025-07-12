@@ -1,7 +1,7 @@
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiKey {
@@ -63,9 +63,7 @@ impl KeyManager {
             key.last_reset = Utc::now();
         }
 
-        key.is_active &&
-        key.current_requests < key.max_requests_per_minute &&
-        key.failure_count < 5
+        key.is_active && key.current_requests < key.max_requests_per_minute && key.failure_count < 5
     }
 
     pub async fn mark_key_failed(&self, key_id: &str) {
