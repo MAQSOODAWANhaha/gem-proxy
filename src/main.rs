@@ -21,6 +21,8 @@ use tokio::runtime::Builder;
 mod api;
 mod auth;
 mod config;
+mod error;
+mod integration_example;
 mod load_balancer;
 mod metrics;
 mod persistence;

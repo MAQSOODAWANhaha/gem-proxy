@@ -693,6 +693,7 @@ dependencies = [
  "argon2",
  "async-trait",
  "chrono",
+ "hostname",
  "jsonwebtoken",
  "openssl",
  "pingora",

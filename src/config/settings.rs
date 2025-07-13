@@ -79,6 +79,30 @@ impl ProxyConfig {
         
         Ok(config)
     }
+
+    /// 使用新错误系统从文件加载配置
+    pub fn from_file_enhanced(path: &str) -> crate::error::Result<Self> {
+        use crate::config::validation::ConfigValidator;
+        
+        let content = fs::read_to_string(path)
+            .map_err(|e| crate::error::GeminiProxyError::config_with_context(
+                format!("无法读取配置文件: {}", e),
+                "config",
+                "load_file"
+            ).with_metadata("file_path", path))?;
+
+        let config: ProxyConfig = serde_yaml::from_str(&content)
+            .map_err(|e| crate::error::GeminiProxyError::config_with_context(
+                format!("配置文件格式错误: {}", e),
+                "config", 
+                "parse_yaml"
+            ).with_metadata("file_path", path))?;
+
+        // 使用新的验证器
+        ConfigValidator::validate_proxy_config(&config)?;
+        
+        Ok(config)
+    }
     
     /// 配置验证
     pub fn validate(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
