@@ -692,6 +692,7 @@ dependencies = [
  "acme-lib",
  "argon2",
  "async-trait",
+ "base64 0.21.7",
  "chrono",
  "hostname",
  "jsonwebtoken",

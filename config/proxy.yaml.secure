@@ -1,83 +1,211 @@
 # Gemini API Proxy 安全配置模板
 # 
-# 🔒 安全最佳实践：
+# 🔒 企业级安全最佳实践配置
+# 
+# ⚠️  重要安全提醒：
 # 1. 将此文件复制为 proxy.yaml 并修改所有敏感信息
-# 2. 使用环境变量存储密钥（推荐）
+# 2. 使用环境变量存储密钥（强烈推荐）
 # 3. 定期轮换密钥和密码
-# 4. 生产环境启用 TLS
+# 4. 生产环境必须启用 TLS
+# 5. 启用审计日志进行安全监控
 
+# 🌐 服务器安全配置
 server:
-  host: 0.0.0.0
-  port: 8080
-  workers: 4
-  max_connections: 10000
+  host: "0.0.0.0"              # 生产环境绑定所有接口
+  port: 443                    # 标准 HTTPS 端口
+  workers: 4                   # 根据 CPU 核心数调整
+  max_connections: 1000        # 防止资源耗尽攻击
+  
+  # 🔒 强制启用 TLS
   tls:
-    enabled: true  # 生产环境推荐启用
-    cert_path: certs/cert.pem
-    key_path: certs/key.pem
+    enabled: true              # 生产环境必须启用
+    cert_path: "certs/cert.pem"
+    key_path: "certs/key.pem"
+    
+    # 🤖 推荐使用 ACME 自动证书
     acme:
-      enabled: true  # 自动 SSL 证书
+      enabled: true            # 自动 SSL 证书管理
       domains:
-        - your-domain.com  # 替换为您的域名
-      email: your-email@example.com  # 替换为您的邮箱
-      directory_url: https://acme-v02.api.letsencrypt.org/directory
+        - "your-domain.com"    # ⚠️ 替换为您的真实域名
+      email: "security@your-domain.com"  # ⚠️ 替换为您的安全联系邮箱
+      directory_url: "https://acme-v02.api.letsencrypt.org/directory"
 
+# 🔑 Gemini API 安全配置
 gemini:
   api_keys:
-    # 🔑 从环境变量读取 API 密钥（推荐）
+    # 🔐 强烈推荐：从环境变量读取 API 密钥
     # 设置环境变量：export GEMINI_API_KEY_1="your-real-key"
-    - id: primary
-      key: "${GEMINI_API_KEY_1}"  # 环境变量
+    - id: "primary"
+      key: "${GEMINI_API_KEY_1}"    # 环境变量引用
       weight: 100
-      max_requests_per_minute: 60
-    # 可选：多个密钥实现负载均衡
-    # - id: secondary  
+      max_requests_per_minute: 100
+      
+    # 🔄 可选：多密钥负载均衡（提高可用性）
+    # - id: "secondary"  
     #   key: "${GEMINI_API_KEY_2}"
-    #   weight: 100
-    #   max_requests_per_minute: 60
-  base_url: https://generativelanguage.googleapis.com
+    #   weight: 80
+    #   max_requests_per_minute: 80
+    
+    # 🚨 备用密钥（紧急情况使用）
+    # - id: "emergency"
+    #   key: "${GEMINI_API_KEY_BACKUP}"
+    #   weight: 50
+    #   max_requests_per_minute: 30
+      
+  base_url: "https://generativelanguage.googleapis.com"
   timeout_seconds: 30
 
+# 🔐 认证安全加固
 auth:
-  enabled: true
-  # 🔐 从环境变量读取 JWT 密钥（推荐）
-  # 生成命令：openssl rand -base64 64
+  enabled: true                # 强制启用认证
+  
+  # 🔑 JWT 密钥安全配置
+  # 生成强密钥：openssl rand -base64 64
   # 设置环境变量：export JWT_SECRET="your-secure-key"
-  jwt_secret: "${JWT_SECRET}"
-  rate_limit_per_minute: 100
-  # 🔒 从环境变量读取管理员密码（推荐）
+  jwt_secret: "${JWT_SECRET}"  # 必须从环境变量读取
+  
+  # 🚫 限制访问频率（防止暴力破解）
+  rate_limit_per_minute: 60    # 降低速率限制以提高安全性
+  
+  # 🔒 管理员密码安全要求
+  # 最低要求：12字符，包含大小写、数字、特殊字符
   # 设置环境变量：export ADMIN_PASSWORD="your-secure-password"
   admin_password: "${ADMIN_PASSWORD}"
-  token_expiry_hours: 24
-  refresh_token_enabled: true
-  session_timeout_minutes: 120
-  max_login_attempts: 5
-  lockout_duration_minutes: 30
+  
+  # ⏰ 安全的令牌配置
+  token_expiry_hours: 8        # 缩短令牌有效期（8小时）
+  refresh_token_enabled: true  # 启用刷新令牌
+  session_timeout_minutes: 30  # 缩短会话超时（30分钟）
+  
+  # 🛡️ 防暴力破解配置
+  max_login_attempts: 3        # 最多3次尝试
+  lockout_duration_minutes: 30 # 锁定30分钟
 
+# 📊 监控和审计配置
 metrics:
-  enabled: true
-  prometheus_port: 9090
+  enabled: true                # 启用监控（安全要求）
+  prometheus_port: 9090        # 内部监控端口
+  
+  # 🔒 API 服务器也启用 TLS（可选但推荐）
   tls:
-    enabled: true  # API 服务器也启用 TLS
-    cert_path: certs/api-cert.pem
-    key_path: certs/api-key.pem
+    enabled: true              # 管理 API 也使用 HTTPS
+    cert_path: "certs/api-cert.pem"
+    key_path: "certs/api-key.pem"
 
-# 🚀 快速安全部署指南：
+# 🚀 快速安全部署指南
 #
-# 1. 生成安全密钥：
-#    openssl rand -base64 64 > jwt_secret.txt
+# 📋 部署前检查清单：
+# 
+# 1. 🔑 生成安全密钥：
+#    ```bash
+#    # 生成 JWT 密钥
+#    export JWT_SECRET=$(openssl rand -base64 64)
 #    
-# 2. 设置环境变量：
-#    export JWT_SECRET=$(cat jwt_secret.txt)
-#    export ADMIN_PASSWORD="your-very-secure-password-123!"
+#    # 生成管理员密码
+#    export ADMIN_PASSWORD="$(openssl rand -base64 24 | tr -d '/+=')@2024!"
+#    
+#    # 设置 API 密钥
 #    export GEMINI_API_KEY_1="your-real-gemini-api-key"
+#    ```
 #    
-# 3. 启动服务：
+# 2. 🌐 域名和证书：
+#    - 确保域名正确解析到服务器
+#    - ACME 需要 80 端口用于验证
+#    - 防火墙开放 443 和 9090 端口
+#    
+# 3. 🔒 文件权限：
+#    ```bash
+#    chmod 600 config/proxy.yaml
+#    chmod 700 certs/
+#    chmod 600 certs/*.pem
+#    ```
+#    
+# 4. 🚀 启动服务：
+#    ```bash
+#    # 验证配置
+#    ./gemini-proxy --check-config
+#    
+#    # 启动服务
 #    ./gemini-proxy
+#    ```
+
+# 🛡️ 安全检查清单
 #
-# 4. 安全检查清单：
-#    ✅ JWT 密钥长度 >= 32 字符
-#    ✅ 管理员密码强度高
-#    ✅ API 密钥非示例值
-#    ✅ 生产环境启用 TLS
-#    ✅ 定期轮换密钥
+# 启动时自动检查项：
+# ✅ JWT 密钥长度 >= 32 字符
+# ✅ JWT 密钥复杂度（大小写+数字+特殊字符）
+# ✅ 管理员密码强度 >= 12 字符
+# ✅ API 密钥非示例值
+# ✅ TLS 配置正确
+# ✅ 网络绑定安全性
+# ✅ 速率限制配置合理
+# ✅ 会话超时设置安全
+#
+# 运行时安全特性：
+# 🔍 完整的审计日志记录
+# 🚨 异常访问行为检测
+# 🔄 API 密钥故障转移
+# 🛡️ 自动熔断保护
+# 📊 实时安全监控
+
+# 🎯 安全等级说明
+#
+# 🟢 开发环境（宽松）:
+# - 可以禁用 TLS
+# - 较长的会话超时
+# - 较高的速率限制
+# - 简化的密码要求
+#
+# 🟡 测试环境（中等）:
+# - 启用 TLS（自签证书）
+# - 中等安全配置
+# - 部分安全检查
+#
+# 🔴 生产环境（严格）:
+# - 强制 TLS + 有效证书
+# - 最严格的安全配置
+# - 完整的审计和监控
+# - 所有安全检查启用
+
+# 📋 定期安全维护任务
+#
+# 🔄 每月任务：
+# - 轮换 JWT 密钥
+# - 检查审计日志异常
+# - 更新管理员密码
+# - 检查证书到期时间
+#
+# 🔄 每季度任务：
+# - 轮换 API 密钥
+# - 安全配置审查
+# - 渗透测试
+# - 备份验证
+#
+# 🔄 每年任务：
+# - 全面安全审计
+# - 灾难恢复演练
+# - 安全培训更新
+
+# ⚠️  紧急响应指南
+#
+# 🚨 如果发现安全威胁：
+# 1. 立即轮换所有密钥
+# 2. 检查审计日志
+# 3. 临时提高安全等级
+# 4. 通知安全团队
+#
+# 🔧 紧急配置调整：
+# ```yaml
+# auth:
+#   max_login_attempts: 1
+#   lockout_duration_minutes: 60
+#   rate_limit_per_minute: 10
+#   token_expiry_hours: 1
+# ```
+
+# 🔗 相关安全资源
+#
+# - OWASP 安全指南: https://owasp.org/
+# - Let's Encrypt 文档: https://letsencrypt.org/docs/
+# - JWT 最佳实践: https://tools.ietf.org/html/rfc8725
+# - Prometheus 安全: https://prometheus.io/docs/operating/security/

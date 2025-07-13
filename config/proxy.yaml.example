@@ -1,62 +1,80 @@
-# Gemini API 代理服务配置示例文件
-# 复制此文件为 proxy.yaml 并根据您的需求进行修改
+# Gemini API 代理服务完整配置示例
+# 
+# 🎯 使用说明:
+# 1. 复制此文件为 proxy.yaml
+# 2. 根据环境需求修改配置
+# 3. 确保敏感信息安全存储
 
-# 服务器配置
+# 🌐 服务器配置
 server:
-  host: "0.0.0.0"          # 监听地址，0.0.0.0 表示监听所有接口
-  port: 8443               # HTTPS 监听端口
-  workers: 4               # 工作线程数，建议设置为 CPU 核心数
-  max_connections: 1000    # 最大并发连接数
+  host: "0.0.0.0"              # 监听地址，0.0.0.0 表示监听所有接口
+  port: 8443                   # HTTPS 监听端口
+  workers: 4                   # 工作线程数，建议设置为 CPU 核心数
+  max_connections: 1000        # 最大并发连接数
   
-  # TLS 配置
+  # 🔒 TLS 配置
   tls:
-    enabled: true          # 默认启用 TLS
-    cert_path: "certs/cert.pem"    # 证书文件路径
-    key_path: "certs/key.pem"      # 私钥文件路径
+    enabled: true              # 生产环境推荐启用 TLS
+    cert_path: "certs/cert.pem"         # 证书文件路径
+    key_path: "certs/key.pem"           # 私钥文件路径
     
-    # ACME 自动证书配置（可选）
+    # 🤖 ACME 自动证书配置（可选）
     acme:
-      enabled: false       # 是否启用 ACME 自动证书
-      domains:             # 域名列表
+      enabled: false           # 是否启用 ACME 自动证书
+      domains:                 # 域名列表
         - "api.example.com"
         - "proxy.example.com"
-      email: "admin@example.com"          # 联系邮箱
-      directory_url: "https://acme-v02.api.letsencrypt.org/directory"  # ACME 目录 URL
+      email: "admin@example.com"              # Let's Encrypt 联系邮箱
+      directory_url: "https://acme-v02.api.letsencrypt.org/directory"  # 生产环境
       # 测试环境使用: "https://acme-staging-v02.api.letsencrypt.org/directory"
 
-# Gemini API 配置
+# 🔑 Gemini API 配置
 gemini:
   # API 密钥配置（支持多个密钥负载均衡）
   api_keys:
-    - id: "primary"        # 密钥标识符
-      key: "your-gemini-api-key-1"       # 实际的 API 密钥
-      weight: 2            # 权重，影响负载分配
-      max_requests_per_minute: 100       # 每分钟最大请求数
+    - id: "primary"            # 密钥标识符
+      key: "your-gemini-api-key-1"           # 实际的 API 密钥
+      weight: 100              # 权重，影响负载分配
+      max_requests_per_minute: 100           # 每分钟最大请求数
     
-    - id: "backup"         # 备用密钥
+    - id: "backup"             # 备用密钥
       key: "your-gemini-api-key-2"
-      weight: 1
-      max_requests_per_minute: 50
+      weight: 50
+      max_requests_per_minute: 60
+    
+    # 可以添加更多密钥...
+    # - id: "high_volume"
+    #   key: "your-gemini-api-key-3"
+    #   weight: 150
+    #   max_requests_per_minute: 200
   
   base_url: "https://generativelanguage.googleapis.com"  # Gemini API 基础 URL
-  timeout_seconds: 30      # 请求超时时间（秒）
+  timeout_seconds: 30          # 请求超时时间（秒）
 
-# 认证配置
+# 🔐 认证配置
 auth:
-  enabled: true            # 是否启用认证
-  jwt_secret: "your-super-secret-jwt-key-at-least-32-characters-long"  # JWT 密钥（至少32字符）
-  rate_limit_per_minute: 60  # 每分钟请求限制
+  enabled: true                # 是否启用认证
+  jwt_secret: "your-secure-jwt-secret-key-at-least-32-characters-long"  # JWT 密钥（至少32字符）
+  rate_limit_per_minute: 100   # 每分钟请求限制
+  admin_password: "your-secure-admin-password-12chars+"  # 管理员密码（至少12字符）
+  token_expiry_hours: 24       # Token 过期时间（小时）
+  refresh_token_enabled: true  # 是否启用刷新 Token
+  session_timeout_minutes: 60  # 会话超时时间（分钟）
+  max_login_attempts: 5        # 最大登录尝试次数
+  lockout_duration_minutes: 15 # 锁定时间（分钟）
 
-# 监控指标配置
+# 📊 监控指标配置
 metrics:
-  enabled: true            # 是否启用监控
-  prometheus_port: 9443    # API 服务器端口 (HTTPS)
-  tls:                     # API 服务器 TLS 配置
-    enabled: true          # 启用 HTTPS
-    cert_path: "certs/api-cert.pem"    # API 服务器证书路径
-    key_path: "certs/api-key.pem"      # API 服务器私钥路径
+  enabled: true                # 是否启用监控
+  prometheus_port: 9090        # API 服务器端口
+  tls:                         # API 服务器 TLS 配置（可选）
+    enabled: false             # 是否为 API 服务器启用 TLS
+    cert_path: "certs/api-cert.pem"        # API 服务器证书路径
+    key_path: "certs/api-key.pem"          # API 服务器私钥路径
 
-# 示例：完整的生产环境配置
+# 📝 配置示例段落
+# 
+# 🏢 生产环境配置示例:
 # server:
 #   host: "0.0.0.0"
 #   port: 443
@@ -75,33 +93,85 @@ metrics:
 # 
 # gemini:
 #   api_keys:
-#     - id: "prod-key-1"
+#     - id: "prod-primary"
 #       key: "AIzaSyD..."
-#       weight: 3
-#       max_requests_per_minute: 200
-#     - id: "prod-key-2"
+#       weight: 200
+#       max_requests_per_minute: 300
+#     - id: "prod-backup"
 #       key: "AIzaSyE..."
-#       weight: 2
-#       max_requests_per_minute: 150
-#     - id: "backup-key"
-#       key: "AIzaSyF..."
-#       weight: 1
-#       max_requests_per_minute: 100
-#   base_url: "https://generativelanguage.googleapis.com"
+#       weight: 100
+#       max_requests_per_minute: 200
 #   timeout_seconds: 60
 # 
 # auth:
 #   enabled: true
-#   jwt_secret: "production-super-secure-secret-key-change-this-in-production"
-#   rate_limit_per_minute: 120
+#   jwt_secret: "production-super-secure-secret-key-change-this-in-production-environment"
+#   admin_password: "ProducTion@SecuRe#PassworD2024!"
+#   rate_limit_per_minute: 200
+#   token_expiry_hours: 8
+#   session_timeout_minutes: 30
+#   max_login_attempts: 3
+#   lockout_duration_minutes: 30
+# 
+# metrics:
+#   enabled: true
+#   prometheus_port: 9090
+#   tls:
+#     enabled: true
+#     cert_path: "/etc/ssl/certs/api.crt"
+#     key_path: "/etc/ssl/private/api.key"
+
+# 🔧 开发环境配置示例:
+# server:
+#   host: "127.0.0.1"
+#   port: 8080
+#   workers: 2
+#   max_connections: 100
+#   tls:
+#     enabled: false  # 开发环境可以禁用 TLS
+# 
+# gemini:
+#   api_keys:
+#     - id: "dev-key"
+#       key: "your-dev-api-key"
+#       weight: 100
+#       max_requests_per_minute: 60
+#   timeout_seconds: 30
+# 
+# auth:
+#   enabled: true
+#   jwt_secret: "development-jwt-secret-key-32chars"
+#   admin_password: "dev-password-123"
+#   rate_limit_per_minute: 60
+#   token_expiry_hours: 24
+#   session_timeout_minutes: 120
 # 
 # metrics:
 #   enabled: true
 #   prometheus_port: 9090
 
-# 注意事项：
+# 📋 重要说明:
+#
+# 🔐 安全要求:
 # 1. JWT 密钥必须至少 32 个字符长度
-# 2. API 密钥需要从 Google AI Studio 获取
-# 3. 生产环境建议启用 TLS
-# 4. 根据实际负载调整 workers 和 max_connections
-# 5. 定期轮换 API 密钥以提高安全性
+# 2. 管理员密码建议至少 12 个字符，包含大小写字母、数字、特殊字符
+# 3. API 密钥需要从 Google AI Studio 获取有效密钥
+# 4. 生产环境强烈建议启用 TLS
+# 
+# ⚡ 性能调优:
+# 1. workers 数量建议设置为 CPU 核心数
+# 2. max_connections 根据实际负载和服务器性能调整
+# 3. API 密钥的 weight 影响负载分配，合理设置权重
+# 4. timeout_seconds 根据网络环境和响应时间要求调整
+# 
+# 🔍 监控建议:
+# 1. 启用 metrics 以便 Prometheus 监控
+# 2. 定期检查 /health 端点
+# 3. 监控 /performance 和 /errors 端点
+# 4. 设置适当的告警阈值
+# 
+# 🔄 维护建议:
+# 1. 定期轮换 API 密钥以提高安全性
+# 2. 备份配置文件和权重预设
+# 3. 定期更新 TLS 证书
+# 4. 监控审计日志中的异常访问模式

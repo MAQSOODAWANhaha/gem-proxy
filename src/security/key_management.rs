@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 /// 密钥类型
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum KeyType {
     /// JWT签名密钥
     JwtSecret,
@@ -105,8 +105,9 @@ impl SecureKeyGenerator {
 
     /// 生成Base64编码的随机密钥
     pub fn generate_base64_key(bytes: usize) -> String {
+        use base64::{Engine as _, engine::general_purpose};
         let random_bytes: Vec<u8> = (0..bytes).map(|_| rand::random::<u8>()).collect();
-        base64::encode(&random_bytes)
+        general_purpose::STANDARD.encode(&random_bytes)
     }
 }
 

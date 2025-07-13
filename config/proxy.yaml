@@ -1,49 +1,87 @@
+# Gemini API 代理服务配置文件
+# 
+# ⚠️  重要提醒：
+# 这是开发环境配置模板，包含安全的默认值
+# 生产环境请使用 proxy.yaml.secure 作为模板
+
 server:
-  host: 0.0.0.0
-  port: 8080
-  workers: 4
-  max_connections: 10000
+  host: "127.0.0.1"            # 开发环境仅绑定本地
+  port: 8080                   # HTTP 端口（开发环境）
+  workers: 2                   # 开发环境较少的工作进程
+  max_connections: 100         # 开发环境限制连接数
+  
   tls:
-    enabled: false
-    cert_path: certs/cert.pem
-    key_path: certs/key.pem
+    enabled: false             # 开发环境可以禁用 TLS
+    cert_path: "certs/cert.pem"
+    key_path: "certs/key.pem"
     acme:
       enabled: false
       domains:
-      - proxy.example.com
-      email: admin@example.com
-      directory_url: https://acme-staging-v02.api.letsencrypt.org/directory
+        - "localhost"
+      email: "dev@localhost"
+      directory_url: "https://acme-staging-v02.api.letsencrypt.org/directory"
+
 gemini:
   api_keys:
-  - id: key1
-    key: AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    weight: 100
-    max_requests_per_minute: 60
-  - id: key2
-    key: AIzaSyYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY
-    weight: 100
-    max_requests_per_minute: 60
-  - id: key3
-    key: AIzaSyZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ
-    weight: 100
-    max_requests_per_minute: 60
-  base_url: https://generativelanguage.googleapis.com
+    # ⚠️ 请替换为您的真实 API 密钥
+    - id: "dev-key-1"
+      key: "your-gemini-api-key-here"     # 需要替换
+      weight: 100
+      max_requests_per_minute: 60
+      
+    # 可选：添加更多密钥进行负载均衡测试
+    # - id: "dev-key-2"
+    #   key: "your-second-api-key-here"
+    #   weight: 50
+    #   max_requests_per_minute: 30
+      
+  base_url: "https://generativelanguage.googleapis.com"
   timeout_seconds: 30
+
 auth:
   enabled: true
-  jwt_secret: your-super-secret-key-that-is-long-and-secure
+  # ⚠️ 请设置至少 32 字符的强密钥
+  jwt_secret: "development-jwt-secret-key-32-characters-minimum-length"
   rate_limit_per_minute: 100
-  admin_password: admin123456
-  token_expiry_hours: 24
+  # ⚠️ 请设置至少 12 字符的强密码
+  admin_password: "dev-admin-password-12chars"
+  token_expiry_hours: 24       # 开发环境较长过期时间
   refresh_token_enabled: true
-  session_timeout_minutes: 120
-  max_login_attempts: 5
-  lockout_duration_minutes: 30
+  session_timeout_minutes: 120 # 开发环境较长会话时间
+  max_login_attempts: 10       # 开发环境较宽松限制
+  lockout_duration_minutes: 5
+
 metrics:
   enabled: true
   prometheus_port: 9090
   tls:
-    enabled: false
-    cert_path: certs/api-cert.pem
-    key_path: certs/api-key.pem
-    acme: null
+    enabled: false             # 开发环境 API 服务器不使用 TLS
+    cert_path: "certs/api-cert.pem"
+    key_path: "certs/api-key.pem"
+
+# 📋 开发环境配置说明
+#
+# 🔧 快速开始：
+# 1. 替换 Gemini API 密钥
+# 2. 修改 JWT 密钥（至少32字符）
+# 3. 设置管理员密码（至少12字符）
+# 4. 运行：cargo run
+#
+# 🔍 测试 API：
+# - 代理服务：http://localhost:8080
+# - 管理 API：http://localhost:9090
+# - 健康检查：http://localhost:9090/health
+# - 监控指标：http://localhost:9090/metrics
+#
+# 🔒 安全提醒：
+# - 开发环境禁用了 TLS（仅用于测试）
+# - 密钥和密码需要手动设置
+# - 生产环境请使用 proxy.yaml.secure 模板
+# - 启动时会进行安全配置验证
+#
+# 📝 配置验证：
+# 系统会检查以下安全要求：
+# - JWT 密钥长度 >= 32 字符
+# - 管理员密码长度 >= 12 字符  
+# - API 密钥不能是示例值
+# - 开发环境允许较宽松的配置

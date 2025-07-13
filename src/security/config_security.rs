@@ -4,7 +4,7 @@
 //! 检查配置中的安全漏洞和不安全设置
 
 use crate::config::{ProxyConfig, AuthConfig};
-use crate::error::{GeminiProxyError, ValidationError, ErrorSeverity};
+use crate::error::{GeminiProxyError, ErrorSeverity};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -462,11 +462,11 @@ impl SecurityAuditReport {
 
     /// 计算安全评分
     fn calculate_security_score(summary: &SecuritySummary) -> u8 {
-        let base_score = 100;
-        let critical_penalty = summary.critical_issues * 25;
-        let high_penalty = summary.high_issues * 15;
-        let medium_penalty = summary.medium_issues * 8;
-        let low_penalty = summary.low_issues * 3;
+        let base_score: u32 = 100;
+        let critical_penalty = (summary.critical_issues * 25) as u32;
+        let high_penalty = (summary.high_issues * 15) as u32;
+        let medium_penalty = (summary.medium_issues * 8) as u32;
+        let low_penalty = (summary.low_issues * 3) as u32;
 
         let total_penalty = critical_penalty + high_penalty + medium_penalty + low_penalty;
         (base_score.saturating_sub(total_penalty)).max(0) as u8

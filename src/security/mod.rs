@@ -5,10 +5,7 @@
 
 pub mod config_security;
 pub mod key_management;
-pub mod access_control;
 pub mod audit_logging;
 
 pub use config_security::*;
-pub use key_management::*;
-pub use access_control::*;
 pub use audit_logging::*;

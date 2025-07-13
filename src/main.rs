@@ -27,12 +27,20 @@ mod load_balancer;
 mod metrics;
 mod persistence;
 mod proxy;
+mod security;
 mod utils;
 
 fn main() {
     tracing_subscriber::fmt::init();
 
-    let config = ProxyConfig::from_file("config/proxy.yaml").expect("Failed to load configuration");
+    // 使用增强的配置加载，包含安全验证
+    let config = match load_and_validate_config("config/proxy.yaml") {
+        Ok(config) => config,
+        Err(e) => {
+            tracing::error!("配置加载或安全验证失败: {}", e);
+            std::process::exit(1);
+        }
+    };
 
     // 使用新的统一密钥管理器，消除状态重复和锁竞争
     let key_manager = Arc::new(UnifiedKeyManager::new(
@@ -294,4 +302,91 @@ async fn start_api_server(
         tracing::info!("Monitor APIs: /metrics, /health, /performance, /errors");
         warp::serve(routes).run(([127, 0, 0, 1], port)).await;
     }
+}
+
+/// 加载并验证配置的安全性
+fn load_and_validate_config(config_path: &str) -> Result<ProxyConfig, String> {
+    use crate::security::{SecurityConfigValidator, AuditLogManager, AuditConfig};
+    use crate::config::validation::ConfigValidator;
+    
+    // 1. 基础配置加载
+    tracing::info!("正在加载配置文件: {}", config_path);
+    let config = ProxyConfig::from_file_enhanced(config_path)
+        .map_err(|e| format!("配置文件加载失败: {}", e))?;
+    
+    // 2. 配置验证（语法和逻辑）
+    tracing::info!("正在验证配置有效性...");
+    if let Err(validation_error) = ConfigValidator::validate_proxy_config(&config) {
+        return Err(format!("配置验证失败: {}", validation_error));
+    }
+    
+    // 3. 安全配置验证
+    tracing::info!("正在进行安全配置检查...");
+    match SecurityConfigValidator::validate_security(&config) {
+        Ok(security_report) => {
+            // 显示安全评分和问题摘要
+            tracing::info!("安全评分: {}/100", security_report.security_score);
+            tracing::info!("发现 {} 个安全问题 (严重:{}, 高:{}, 中:{}, 低:{})",
+                security_report.summary.total_issues,
+                security_report.summary.critical_issues,
+                security_report.summary.high_issues,
+                security_report.summary.medium_issues,
+                security_report.summary.low_issues
+            );
+            
+            // 如果有高风险或中风险问题，给出警告
+            if security_report.summary.high_issues > 0 || security_report.summary.medium_issues > 0 {
+                tracing::warn!("检测到安全问题，建议查看安全报告:");
+                for issue in &security_report.issues {
+                    if matches!(issue.threat_level, crate::security::ThreatLevel::High | crate::security::ThreatLevel::Medium) {
+                        tracing::warn!("- [{}] {}: {}", 
+                            match issue.threat_level {
+                                crate::security::ThreatLevel::Critical => "严重",
+                                crate::security::ThreatLevel::High => "高",
+                                crate::security::ThreatLevel::Medium => "中",
+                                crate::security::ThreatLevel::Low => "低",
+                            },
+                            issue.description, 
+                            issue.remediation
+                        );
+                    }
+                }
+            }
+            
+            // 严重问题已经在验证函数中处理，这里只处理非严重问题
+        }
+        Err(critical_error) => {
+            // 严重安全问题，拒绝启动
+            return Err(format!("严重安全问题: {}", critical_error));
+        }
+    }
+    
+    // 4. 初始化审计日志并记录配置加载事件
+    let audit_config = AuditConfig {
+        file_output_enabled: true,
+        log_file_path: "logs/audit.log".to_string(),
+        ..AuditConfig::default()
+    };
+    
+    let mut audit_manager = AuditLogManager::new(audit_config);
+    
+    // 记录配置加载成功事件
+    tokio::runtime::Handle::try_current()
+        .unwrap_or_else(|_| {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.handle().clone()
+        })
+        .block_on(async {
+            if let Err(e) = audit_manager.log_system_operation(
+                "配置加载",
+                "config_loader",
+                crate::security::AuditResult::Success,
+                Some(format!("成功加载配置文件: {}", config_path)),
+            ).await {
+                tracing::warn!("记录审计日志失败: {}", e);
+            }
+        });
+    
+    tracing::info!("✅ 配置加载和安全验证完成");
+    Ok(config)
 }
