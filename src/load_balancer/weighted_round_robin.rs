@@ -1,4 +1,4 @@
-use crate::load_balancer::ApiKey;
+use crate::load_balancer::key_manager::ApiKey;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -7,6 +7,7 @@ use tokio::sync::RwLock;
 /// 使用平滑加权轮询算法(Smooth Weighted Round Robin)，
 /// 确保请求按照权重比例分配，同时避免权重大的服务器连续被选中
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct WeightedRoundRobin {
     /// 存储 API 密钥及其调度状态
     keys: Arc<RwLock<Vec<WeightedApiKey>>>,
@@ -16,6 +17,7 @@ pub struct WeightedRoundRobin {
 
 /// 带权重调度信息的 API 密钥
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct WeightedApiKey {
     /// 原始 API 密钥信息
     pub api_key: ApiKey,

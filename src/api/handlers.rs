@@ -24,6 +24,13 @@ pub async fn handle_rejection(err: Rejection) -> Result<impl Reply, std::convert
     } else if err.find::<warp::reject::MethodNotAllowed>().is_some() {
         code = StatusCode::METHOD_NOT_ALLOWED;
         message = "Method Not Allowed";
+    } else if let Some(auth_error) = err.find::<crate::api::auth::AuthError>() {
+        code = StatusCode::UNAUTHORIZED;
+        message = match auth_error {
+            crate::api::auth::AuthError::InvalidToken => "Invalid JWT token",
+            crate::api::auth::AuthError::MissingToken => "Missing Authorization header",
+            crate::api::auth::AuthError::SessionExpired => "Session expired",
+        };
     } else {
         tracing::error!("Unhandled rejection: {:?}", err);
         code = StatusCode::INTERNAL_SERVER_ERROR;

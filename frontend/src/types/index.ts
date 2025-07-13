@@ -38,11 +38,18 @@ export interface AuthConfig {
   enabled: boolean
   jwt_secret: string
   rate_limit_per_minute: number
+  admin_password: string
+  token_expiry_hours: number
+  refresh_token_enabled: boolean
+  session_timeout_minutes: number
+  max_login_attempts: number
+  lockout_duration_minutes: number
 }
 
 export interface MetricsConfig {
   enabled: boolean
   prometheus_port: number
+  tls?: TlsConfig  // API 服务器的 TLS 配置
 }
 
 export interface ProxyConfig {
@@ -160,4 +167,49 @@ export interface WeightUpdate {
 
 export interface BatchUpdateWeightRequest {
   updates: WeightUpdate[]
+}
+
+// 认证相关类型
+export interface User {
+  id: string
+  role: string
+  sessionId: string
+}
+
+export interface LoginRequest {
+  password: string
+}
+
+export interface LoginResponse {
+  success: boolean
+  token?: string
+  refresh_token?: string
+  expires_in?: number
+  message: string
+}
+
+export interface RefreshRequest {
+  refresh_token: string
+}
+
+export interface LogoutRequest {
+  session_id: string
+}
+
+export interface VerifyTokenRequest {
+  token: string
+}
+
+export interface Claims {
+  sub: string
+  exp: number
+  iat: number
+  role: string
+  session_id: string
+}
+
+export interface VerifyTokenResponse {
+  valid: boolean
+  claims?: Claims
+  message?: string
 }

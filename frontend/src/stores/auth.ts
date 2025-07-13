@@ -1,32 +1,11 @@
 // src/stores/auth.ts
 import { defineStore } from 'pinia'
 import axios from 'axios'
-
-export interface User {
-  id: string
-  role: string
-  sessionId: string
-}
-
-export interface LoginRequest {
-  password: string
-}
-
-export interface LoginResponse {
-  success: boolean
-  token?: string
-  refresh_token?: string
-  expires_in?: number
-  message: string
-}
-
-export interface Claims {
-  sub: string
-  exp: number
-  iat: number
-  role: string
-  session_id: string
-}
+import type { 
+  User, 
+  LoginResponse, 
+  Claims
+} from '../types'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -50,7 +29,7 @@ export const useAuthStore = defineStore('auth', {
       this.error = null
 
       try {
-        const response = await axios.post<LoginResponse>('/api/auth/login', {
+        const response = await axios.post<LoginResponse>('/auth/login', {
           password
         })
 
@@ -89,7 +68,7 @@ export const useAuthStore = defineStore('auth', {
     async logout() {
       try {
         if (this.user?.sessionId) {
-          await axios.post('/api/auth/logout', {
+          await axios.post('/auth/logout', {
             session_id: this.user.sessionId
           })
         }
@@ -107,7 +86,7 @@ export const useAuthStore = defineStore('auth', {
       }
 
       try {
-        const response = await axios.post<LoginResponse>('/api/auth/refresh', {
+        const response = await axios.post<LoginResponse>('/auth/refresh', {
           refresh_token: this.refreshToken
         })
 
@@ -137,7 +116,7 @@ export const useAuthStore = defineStore('auth', {
       }
 
       try {
-        const response = await axios.post('/api/auth/verify', {
+        const response = await axios.post('/auth/verify', {
           token: this.token
         })
 

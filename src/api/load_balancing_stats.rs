@@ -5,7 +5,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
 use warp::{Filter, Rejection, Reply};
 
-use crate::load_balancer::KeyManager;
+use crate::load_balancer::UnifiedKeyManager;
 
 /// 负载均衡统计信息
 #[derive(Debug, Serialize, Clone)]
@@ -103,13 +103,14 @@ pub struct ResponseTimeTrend {
 /// 统计状态管理
 #[derive(Clone)]
 pub struct StatsState {
-    pub key_manager: Option<Arc<KeyManager>>,
+    pub key_manager: Option<Arc<UnifiedKeyManager>>,
+    #[allow(dead_code)]  // 保留用于未来功能扩展
     pub stats_data: Arc<RwLock<LoadBalancingStats>>,
     pub start_time: SystemTime,
 }
 
 impl StatsState {
-    pub fn new(key_manager: Option<Arc<KeyManager>>) -> Self {
+    pub fn new(key_manager: Option<Arc<UnifiedKeyManager>>) -> Self {
         Self {
             key_manager,
             stats_data: Arc::new(RwLock::new(LoadBalancingStats::default())),
@@ -117,7 +118,7 @@ impl StatsState {
         }
     }
 
-    pub async fn get_key_manager(&self) -> Option<Arc<KeyManager>> {
+    pub async fn get_key_manager(&self) -> Option<Arc<UnifiedKeyManager>> {
         self.key_manager.clone()
     }
 }
@@ -170,14 +171,20 @@ async fn get_load_balancing_stats_handler(
 ) -> Result<impl Reply, Rejection> {
     match state.get_key_manager().await {
         Some(key_manager) => {
-            let weight_stats = key_manager.get_weight_stats().await;
+            let weight_stats = key_manager.get_stats().await;
+            let all_keys = key_manager.get_all_keys().await;
             
             // 生成模拟的负载均衡统计数据
             let mut request_distribution = HashMap::new();
             let total_requests = 15000u64;
             
-            for distribution in &weight_stats.key_distributions {
-                let expected_percentage = distribution.percentage;
+            for key in &all_keys {
+                let total_weight = weight_stats.total_weight as f64;
+                let expected_percentage = if total_weight > 0.0 {
+                    (key.weight as f64 / total_weight) * 100.0
+                } else {
+                    0.0
+                };
                 let expected_requests = (total_requests as f64 * expected_percentage / 100.0) as u64;
                 
                 // 模拟实际请求分布（略有偏差）
@@ -186,22 +193,26 @@ async fn get_load_balancing_stats_handler(
                 let actual_percentage = (actual_requests as f64 / total_requests as f64) * 100.0;
                 
                 // 计算有效性评分
-                let effectiveness_score: f64 = 100.0 - ((expected_percentage - actual_percentage).abs() / expected_percentage * 100.0);
+                let effectiveness_score: f64 = if expected_percentage > 0.0 {
+                    100.0 - ((expected_percentage - actual_percentage).abs() / expected_percentage * 100.0)
+                } else {
+                    0.0
+                };
                 
                 let stats = RequestStats {
-                    key_id: distribution.key_id.clone(),
+                    key_id: key.id.clone(),
                     total_requests: actual_requests,
                     successful_requests: (actual_requests as f64 * 0.95) as u64, // 95% 成功率
                     failed_requests: (actual_requests as f64 * 0.05) as u64,
                     average_response_time: 150.0 + rand::random::<f64>() * 100.0, // 150-250ms
                     last_request_time: Some(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()),
-                    current_weight: distribution.weight,
+                    current_weight: key.weight,
                     expected_percentage,
                     actual_percentage,
                     effectiveness_score: effectiveness_score.max(0.0),
                 };
                 
-                request_distribution.insert(distribution.key_id.clone(), stats);
+                request_distribution.insert(key.id.clone(), stats);
             }
             
             // 计算整体统计

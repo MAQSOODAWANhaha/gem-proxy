@@ -186,6 +186,24 @@ impl ProxyConfig {
             if self.auth.admin_password.len() < 8 {
                 return Err("管理员密码长度至少需要8个字符".into());
             }
+            
+            // 检查不安全的默认值
+            if self.auth.admin_password == "admin123456" || 
+               self.auth.admin_password == "admin" ||
+               self.auth.admin_password == "password" ||
+               self.auth.admin_password == "123456" {
+                return Err("⚠️  安全警告：检测到不安全的默认密码，请更改为强密码".into());
+            }
+            
+            if self.auth.jwt_secret == "your-super-secret-key-that-is-long-and-secure" ||
+               self.auth.jwt_secret.len() < 32 {
+                return Err("⚠️  安全警告：JWT密钥不安全，请使用至少32字符的随机密钥".into());
+            }
+            
+            // 检查密码强度
+            if !self.is_password_strong(&self.auth.admin_password) {
+                tracing::warn!("⚠️  建议使用更强的管理员密码（包含大小写字母、数字和特殊字符）");
+            }
             if self.auth.token_expiry_hours == 0 {
                 return Err("Token过期时间不能为0".into());
             }
@@ -222,6 +240,30 @@ impl ProxyConfig {
             }
         }
         
+        // Gemini API 密钥安全检查
+        for (i, api_key) in self.gemini.api_keys.iter().enumerate() {
+            if api_key.key.starts_with("AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX") ||
+               api_key.key.starts_with("AIzaSyYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY") ||
+               api_key.key.starts_with("AIzaSyZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ") ||
+               api_key.key == "YOUR_REAL_GEMINI_API_KEY_HERE" {
+                return Err(format!("⚠️  安全警告：API密钥 {} 使用的是示例值，请配置真实的 Gemini API 密钥", i + 1).into());
+            }
+            
+            if api_key.key.len() < 30 {
+                return Err(format!("⚠️  API密钥 {} 长度异常，请检查是否为有效的 Gemini API 密钥", i + 1).into());
+            }
+        }
+        
         Ok(())
+    }
+    
+    /// 检查密码强度
+    fn is_password_strong(&self, password: &str) -> bool {
+        let has_lower = password.chars().any(|c| c.is_lowercase());
+        let has_upper = password.chars().any(|c| c.is_uppercase());
+        let has_digit = password.chars().any(|c| c.is_numeric());
+        let has_special = password.chars().any(|c| "!@#$%^&*()_+-=[]{}|;:,.<>?".contains(c));
+        
+        password.len() >= 12 && has_lower && has_upper && has_digit && has_special
     }
 }

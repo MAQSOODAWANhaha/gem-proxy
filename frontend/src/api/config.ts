@@ -10,23 +10,7 @@ import type {
   ApiResponse
 } from '../types'
 
-// 创建 axios 实例
-const api = axios.create({
-  baseURL: '/api',
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-})
-
-// 响应拦截器
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    console.error('API 请求错误:', error)
-    return Promise.reject(error)
-  }
-)
+// 使用全局axios实例，不需要单独创建
 
 export const configApi = {
   // 获取当前配置
@@ -73,7 +57,13 @@ export const configApi = {
           auth: {
             enabled: true,
             jwt_secret: "your-super-secret-key-that-is-long-and-secure",
-            rate_limit_per_minute: 100
+            rate_limit_per_minute: 100,
+            admin_password: "admin123456",
+            token_expiry_hours: 24,
+            refresh_token_enabled: true,
+            session_timeout_minutes: 120,
+            max_login_attempts: 5,
+            lockout_duration_minutes: 30
           },
           metrics: {
             enabled: true,
@@ -98,7 +88,7 @@ export const configApi = {
   // 获取健康状态
   async getHealthStatus(): Promise<HealthStatus> {
     try {
-      const response = await axios.get('/health')
+      const response = await axios.get('http://127.0.0.1:9090/internal/health')
       return response.data
     } catch (error) {
       throw new Error('无法获取健康状态')
@@ -108,7 +98,7 @@ export const configApi = {
   // 获取监控指标
   async getMetrics(): Promise<string> {
     try {
-      const response = await axios.get('/metrics', {
+      const response = await axios.get('http://127.0.0.1:9090/internal/metrics', {
         responseType: 'text'
       })
       return response.data
@@ -133,7 +123,7 @@ export const configApi = {
   // 获取权重统计
   async getWeightStats(): Promise<ApiResponse<WeightStatsResponse>> {
     try {
-      const response = await api.get('/weights/stats')
+      const response = await axios.get('/weights/stats')
       return response.data
     } catch (error) {
       console.error('获取权重统计失败:', error)
@@ -144,7 +134,7 @@ export const configApi = {
   // 获取权重分配详情
   async getWeightDistribution(): Promise<WeightStats> {
     try {
-      const response = await api.get('/weights/distribution')
+      const response = await axios.get('/weights/distribution')
       return response.data.data || response.data
     } catch (error) {
       console.error('获取权重分配失败:', error)
@@ -156,7 +146,7 @@ export const configApi = {
   async updateKeyWeight(keyId: string, weight: number): Promise<ApiResponse<void>> {
     try {
       const request: UpdateWeightRequest = { weight }
-      const response = await api.put(`/weights/${keyId}`, request)
+      const response = await axios.put(`/weights/${keyId}`, request)
       return response.data
     } catch (error) {
       console.error('更新权重失败:', error)
@@ -167,7 +157,7 @@ export const configApi = {
   // 批量更新权重
   async batchUpdateWeights(updates: BatchUpdateWeightRequest): Promise<void> {
     try {
-      await api.post('/weights/batch', updates)
+      await axios.post('/weights/batch', updates)
     } catch (error) {
       console.error('批量更新权重失败:', error)
       throw new Error('批量更新权重失败')
@@ -177,7 +167,7 @@ export const configApi = {
   // 智能权重重平衡
   async rebalanceWeights(): Promise<void> {
     try {
-      await api.post('/weights/rebalance')
+      await axios.post('/weights/rebalance')
     } catch (error) {
       console.error('权重重平衡失败:', error)
       throw new Error('权重重平衡失败')
@@ -187,7 +177,7 @@ export const configApi = {
   // 获取权重优化建议
   async getWeightOptimization(): Promise<WeightOptimizationResponse> {
     try {
-      const response = await api.get('/weights/optimize')
+      const response = await axios.get('/weights/optimize')
       return response.data.data || response.data
     } catch (error) {
       console.error('获取优化建议失败:', error)

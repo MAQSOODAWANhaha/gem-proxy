@@ -3,8 +3,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::load_balancer::{ApiKey, WeightAuditSystem, OperationType, ChangeSource};
+use crate::load_balancer::{
+    key_manager::ApiKey, 
+    audit::{WeightAuditSystem, OperationType, ChangeSource}
+};
 use crate::config::ApiKeyConfig;
+// use crate::persistence::weight_presets::WeightPresetStore;
 
 /// 权重预设模板
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,8 +79,9 @@ pub struct RiskFactor {
 }
 
 /// 权重管理工具集
+#[allow(dead_code)]
 pub struct WeightManagementToolkit {
-    /// 权重预设存储
+    /// 权重预设存储（内存）
     presets: Arc<RwLock<Vec<WeightPreset>>>,
     /// 审计系统引用
     audit_system: Arc<RwLock<WeightAuditSystem>>,
@@ -856,9 +861,36 @@ mod tests {
         let toolkit = WeightManagementToolkit::new(audit_system, ToolkitConfig::default());
         
         let api_keys = vec![
-            ApiKey { id: "key1".to_string(), weight: 100, enabled: true },
-            ApiKey { id: "key2".to_string(), weight: 200, enabled: true },
-            ApiKey { id: "key3".to_string(), weight: 50, enabled: false },
+            ApiKey { 
+                id: "key1".to_string(), 
+                key: "test-key-1".to_string(),
+                weight: 100, 
+                max_requests_per_minute: 60,
+                current_requests: 0,
+                last_reset: chrono::Utc::now(),
+                is_active: true,
+                failure_count: 0,
+            },
+            ApiKey { 
+                id: "key2".to_string(), 
+                key: "test-key-2".to_string(),
+                weight: 200, 
+                max_requests_per_minute: 60,
+                current_requests: 0,
+                last_reset: chrono::Utc::now(),
+                is_active: true,
+                failure_count: 0,
+            },
+            ApiKey { 
+                id: "key3".to_string(), 
+                key: "test-key-3".to_string(),
+                weight: 50, 
+                max_requests_per_minute: 60,
+                current_requests: 0,
+                last_reset: chrono::Utc::now(),
+                is_active: false,
+                failure_count: 0,
+            },
         ];
         
         let analysis = toolkit.analyze_weights(&api_keys).await;
@@ -876,8 +908,26 @@ mod tests {
         let toolkit = WeightManagementToolkit::new(audit_system, ToolkitConfig::default());
         
         let mut api_keys = vec![
-            ApiKey { id: "key1".to_string(), weight: 150, enabled: true },
-            ApiKey { id: "key2".to_string(), weight: 300, enabled: true },
+            ApiKey { 
+                id: "key1".to_string(), 
+                key: "test-key-1".to_string(),
+                weight: 150, 
+                max_requests_per_minute: 60,
+                current_requests: 0,
+                last_reset: chrono::Utc::now(),
+                is_active: true,
+                failure_count: 0,
+            },
+            ApiKey { 
+                id: "key2".to_string(), 
+                key: "test-key-2".to_string(),
+                weight: 300, 
+                max_requests_per_minute: 60,
+                current_requests: 0,
+                last_reset: chrono::Utc::now(),
+                is_active: true,
+                failure_count: 0,
+            },
         ];
         
         toolkit.normalize_weights(&mut api_keys, 1000, "admin").await.unwrap();

@@ -53,8 +53,11 @@ pub struct LoginAttempt {
 
 #[derive(Debug)]
 pub struct Session {
+    #[allow(dead_code)]
     pub id: String,
+    #[allow(dead_code)]
     pub user_id: String,
+    #[allow(dead_code)]
     pub created_at: chrono::DateTime<Utc>,
     pub last_activity: chrono::DateTime<Utc>,
     pub is_active: bool,
@@ -207,6 +210,7 @@ impl AuthState {
     }
 
     // 清理过期会话
+    #[allow(dead_code)]
     pub async fn cleanup_expired_sessions(&self) {
         let mut sessions = self.active_sessions.write().await;
         let now = Utc::now();

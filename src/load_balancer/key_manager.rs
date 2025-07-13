@@ -21,6 +21,7 @@ pub struct ApiKey {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct KeyManager {
     /// 加权轮询调度器
     scheduler: Arc<WeightedRoundRobin>,
@@ -29,6 +30,7 @@ pub struct KeyManager {
 }
 
 impl KeyManager {
+    #[allow(dead_code)]
     pub fn new(keys: Vec<ApiKey>) -> Self {
         let scheduler = Arc::new(WeightedRoundRobin::new(keys.clone()));
         Self {

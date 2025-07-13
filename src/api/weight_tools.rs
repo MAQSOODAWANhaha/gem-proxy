@@ -6,9 +6,10 @@ use warp::{Filter, Rejection, Reply};
 
 use crate::ConfigState;
 use crate::load_balancer::{
-    WeightManagementToolkit, WeightPreset, WeightAnalysis, HealthCheckResult,
+    WeightManagementToolkit, WeightPreset,
     PerformanceMetrics, ToolkitConfig, WeightAuditSystem, AuditConfig
 };
+// 移除未使用的导入：WeightAnalysis, HealthCheckResult
 
 /// 权重工具状态管理
 #[derive(Clone)]

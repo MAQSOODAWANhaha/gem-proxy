@@ -1,7 +1,7 @@
 // src/proxy/service.rs
 use crate::auth::AuthHandler;
 use crate::config::GeminiConfig;
-use crate::load_balancer::KeyManager;
+use crate::load_balancer::UnifiedKeyManager;
 use crate::metrics::MetricsCollector;
 use async_trait::async_trait;
 use chrono::Utc;
@@ -18,7 +18,7 @@ pub struct ProxyCtx {
 }
 
 pub struct GeminiProxyService {
-    key_manager: Arc<KeyManager>,
+    key_manager: Arc<UnifiedKeyManager>,
     auth_handler: Arc<AuthHandler>,
     metrics: Arc<MetricsCollector>,
     gemini_config: Arc<GeminiConfig>,
@@ -26,7 +26,7 @@ pub struct GeminiProxyService {
 
 impl GeminiProxyService {
     pub fn new(
-        key_manager: Arc<KeyManager>,
+        key_manager: Arc<UnifiedKeyManager>,
         auth_handler: Arc<AuthHandler>,
         metrics: Arc<MetricsCollector>,
         gemini_config: Arc<GeminiConfig>,

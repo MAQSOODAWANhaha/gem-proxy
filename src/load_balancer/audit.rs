@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
 
-use crate::load_balancer::ApiKey;
+// use crate::load_balancer::ApiKey;  // 移除：未使用的导入
 
 /// 权重变更记录
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,6 +63,7 @@ pub struct WeightSnapshot {
 
 /// 审计查询条件
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct AuditQuery {
     pub start_time: Option<u64>,
     pub end_time: Option<u64>,
@@ -102,6 +103,7 @@ pub struct TimeSeriesPoint {
 }
 
 /// 权重变更审计系统
+#[allow(dead_code)]
 pub struct WeightAuditSystem {
     /// 变更记录存储
     change_records: Arc<RwLock<Vec<WeightChangeRecord>>>,
@@ -494,14 +496,14 @@ impl WeightAuditSystem {
             .as_secs() - (days as u64 * 24 * 3600);
 
         let mut trend_points = Vec::new();
-        let mut current_weight = 100; // 默认初始权重
+        let mut _current_weight = 100; // 默认初始权重（暂未使用）
 
         for record in records.iter() {
             if record.target_key_id == key_id && record.timestamp >= cutoff_time {
-                current_weight = record.new_weight;
+                _current_weight = record.new_weight;
                 trend_points.push(WeightTrendPoint {
                     timestamp: record.timestamp,
-                    weight: current_weight,
+                    weight: _current_weight,
                     operation_type: record.operation_type.clone(),
                     operator: record.operator.clone(),
                 });

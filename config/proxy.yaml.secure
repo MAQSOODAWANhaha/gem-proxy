@@ -1,0 +1,83 @@
+# Gemini API Proxy 安全配置模板
+# 
+# 🔒 安全最佳实践：
+# 1. 将此文件复制为 proxy.yaml 并修改所有敏感信息
+# 2. 使用环境变量存储密钥（推荐）
+# 3. 定期轮换密钥和密码
+# 4. 生产环境启用 TLS
+
+server:
+  host: 0.0.0.0
+  port: 8080
+  workers: 4
+  max_connections: 10000
+  tls:
+    enabled: true  # 生产环境推荐启用
+    cert_path: certs/cert.pem
+    key_path: certs/key.pem
+    acme:
+      enabled: true  # 自动 SSL 证书
+      domains:
+        - your-domain.com  # 替换为您的域名
+      email: your-email@example.com  # 替换为您的邮箱
+      directory_url: https://acme-v02.api.letsencrypt.org/directory
+
+gemini:
+  api_keys:
+    # 🔑 从环境变量读取 API 密钥（推荐）
+    # 设置环境变量：export GEMINI_API_KEY_1="your-real-key"
+    - id: primary
+      key: "${GEMINI_API_KEY_1}"  # 环境变量
+      weight: 100
+      max_requests_per_minute: 60
+    # 可选：多个密钥实现负载均衡
+    # - id: secondary  
+    #   key: "${GEMINI_API_KEY_2}"
+    #   weight: 100
+    #   max_requests_per_minute: 60
+  base_url: https://generativelanguage.googleapis.com
+  timeout_seconds: 30
+
+auth:
+  enabled: true
+  # 🔐 从环境变量读取 JWT 密钥（推荐）
+  # 生成命令：openssl rand -base64 64
+  # 设置环境变量：export JWT_SECRET="your-secure-key"
+  jwt_secret: "${JWT_SECRET}"
+  rate_limit_per_minute: 100
+  # 🔒 从环境变量读取管理员密码（推荐）
+  # 设置环境变量：export ADMIN_PASSWORD="your-secure-password"
+  admin_password: "${ADMIN_PASSWORD}"
+  token_expiry_hours: 24
+  refresh_token_enabled: true
+  session_timeout_minutes: 120
+  max_login_attempts: 5
+  lockout_duration_minutes: 30
+
+metrics:
+  enabled: true
+  prometheus_port: 9090
+  tls:
+    enabled: true  # API 服务器也启用 TLS
+    cert_path: certs/api-cert.pem
+    key_path: certs/api-key.pem
+
+# 🚀 快速安全部署指南：
+#
+# 1. 生成安全密钥：
+#    openssl rand -base64 64 > jwt_secret.txt
+#    
+# 2. 设置环境变量：
+#    export JWT_SECRET=$(cat jwt_secret.txt)
+#    export ADMIN_PASSWORD="your-very-secure-password-123!"
+#    export GEMINI_API_KEY_1="your-real-gemini-api-key"
+#    
+# 3. 启动服务：
+#    ./gemini-proxy
+#
+# 4. 安全检查清单：
+#    ✅ JWT 密钥长度 >= 32 字符
+#    ✅ 管理员密码强度高
+#    ✅ API 密钥非示例值
+#    ✅ 生产环境启用 TLS
+#    ✅ 定期轮换密钥

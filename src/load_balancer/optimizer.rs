@@ -4,9 +4,10 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
 
-use crate::load_balancer::ApiKey;
+use crate::load_balancer::key_manager::ApiKey;
 
 /// 权重优化器
+#[allow(dead_code)]
 pub struct WeightOptimizer {
     /// 历史性能数据
     performance_history: Arc<RwLock<HashMap<String, Vec<PerformanceMetric>>>>,

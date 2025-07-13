@@ -6,10 +6,11 @@ use warp::{Filter, Rejection, Reply};
 
 use crate::ConfigState;
 use crate::load_balancer::{
-    WeightAuditSystem, AuditQuery, WeightChangeRecord, WeightSnapshot,
-    AuditStatistics, OperationType, ChangeSource, ExportFormat,
-    WeightTrendPoint, AuditConfig
+    WeightAuditSystem, AuditQuery, WeightSnapshot,
+    OperationType, ChangeSource, ExportFormat,
+    AuditConfig
 };
+// 移除未使用的导入：WeightChangeRecord, AuditStatistics, WeightTrendPoint
 
 /// 权重审计状态管理
 #[derive(Clone)]

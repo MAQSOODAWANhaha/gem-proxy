@@ -3,9 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use warp::{Filter, Rejection, Reply};
-use crate::load_balancer::{KeyManager, WeightStats};
+use crate::load_balancer::UnifiedKeyManager;
 use crate::api::config::{ApiResponse, ConfigState};
-use crate::config::ProxyConfig;
 
 /// 权重更新请求
 #[derive(Debug, Deserialize)]
@@ -68,7 +67,7 @@ pub struct WeightOptimizationResponse {
 #[derive(Clone)]
 pub struct WeightManagementState {
     config_state: ConfigState,
-    key_manager: Arc<RwLock<Option<Arc<KeyManager>>>>,
+    key_manager: Arc<RwLock<Option<Arc<UnifiedKeyManager>>>>,
 }
 
 impl WeightManagementState {
@@ -79,11 +78,11 @@ impl WeightManagementState {
         }
     }
 
-    pub async fn set_key_manager(&self, key_manager: Arc<KeyManager>) {
+    pub async fn set_key_manager(&self, key_manager: Arc<UnifiedKeyManager>) {
         *self.key_manager.write().await = Some(key_manager);
     }
 
-    pub async fn get_key_manager(&self) -> Option<Arc<KeyManager>> {
+    pub async fn get_key_manager(&self) -> Option<Arc<UnifiedKeyManager>> {
         self.key_manager.read().await.clone()
     }
 }
@@ -146,7 +145,7 @@ pub fn weight_management_routes(
 async fn get_weight_stats_handler(state: WeightManagementState) -> Result<impl Reply, Rejection> {
     match state.get_key_manager().await {
         Some(key_manager) => {
-            let stats = key_manager.get_weight_stats().await;
+            let stats = key_manager.get_stats().await;
             let all_keys = key_manager.get_all_keys().await;
             
             let distributions: Vec<WeightDistribution> = all_keys
@@ -174,7 +173,7 @@ async fn get_weight_stats_handler(state: WeightManagementState) -> Result<impl R
 
             let response = WeightStatsResponse {
                 total_weight: stats.total_weight,
-                active_keys_count: stats.active_keys_count,
+                active_keys_count: stats.active_keys,
                 total_keys_count: distributions.len(),
                 distributions,
                 load_balance_effectiveness: effectiveness,
@@ -197,17 +196,20 @@ async fn update_weight_handler(
 ) -> Result<impl Reply, Rejection> {
     match state.get_key_manager().await {
         Some(key_manager) => {
-            if key_manager.update_key_weight(&key_id, request.weight).await {
-                // 同时更新配置文件
-                if let Err(e) = update_config_weight(&state.config_state, &key_id, request.weight).await {
-                    tracing::warn!("Failed to update config file: {}", e);
-                }
+            match key_manager.update_key_weight(&key_id, request.weight).await {
+                Ok(()) => {
+                    // 同时更新配置文件
+                    if let Err(e) = update_config_weight(&state.config_state, &key_id, request.weight).await {
+                        tracing::warn!("Failed to update config file: {}", e);
+                    }
 
-                let response = ApiResponse::success(());
-                Ok(warp::reply::json(&response))
-            } else {
-                let response = ApiResponse::<()>::error(format!("API key '{}' not found", key_id));
-                Ok(warp::reply::json(&response))
+                    let response = ApiResponse::success(());
+                    Ok(warp::reply::json(&response))
+                }
+                Err(e) => {
+                    let response = ApiResponse::<()>::error(e);
+                    Ok(warp::reply::json(&response))
+                }
             }
         }
         None => {
@@ -228,15 +230,18 @@ async fn batch_update_weights_handler(
             let mut errors = Vec::new();
 
             for update in request.updates {
-                if key_manager.update_key_weight(&update.key_id, update.weight).await {
-                    updated_count += 1;
-                    
-                    // 同时更新配置文件
-                    if let Err(e) = update_config_weight(&state.config_state, &update.key_id, update.weight).await {
-                        tracing::warn!("Failed to update config file for key {}: {}", update.key_id, e);
+                match key_manager.update_key_weight(&update.key_id, update.weight).await {
+                    Ok(()) => {
+                        updated_count += 1;
+                        
+                        // 同时更新配置文件
+                        if let Err(e) = update_config_weight(&state.config_state, &update.key_id, update.weight).await {
+                            tracing::warn!("Failed to update config file for key {}: {}", update.key_id, e);
+                        }
                     }
-                } else {
-                    errors.push(format!("Key '{}' not found", update.key_id));
+                    Err(e) => {
+                        errors.push(format!("Failed to update key '{}': {}", update.key_id, e));
+                    }
                 }
             }
 
@@ -276,7 +281,7 @@ async fn rebalance_weights_handler(state: WeightManagementState) -> Result<impl 
             let mut updated_count = 0;
 
             for key in active_keys {
-                if key_manager.update_key_weight(&key.id, equal_weight).await {
+                if let Ok(()) = key_manager.update_key_weight(&key.id, equal_weight).await {
                     updated_count += 1;
                     
                     // 同时更新配置文件
@@ -369,7 +374,7 @@ async fn get_weight_distribution_handler(
 ) -> Result<impl Reply, Rejection> {
     match state.get_key_manager().await {
         Some(key_manager) => {
-            let stats = key_manager.get_weight_stats().await;
+            let stats = key_manager.get_stats().await;
             let response = ApiResponse::success(stats);
             Ok(warp::reply::json(&response))
         }
