@@ -27,6 +27,100 @@
       </el-col>
     </el-row>
 
+    <!-- 权重管理工具栏 -->
+    <el-card class="weight-management-card">
+      <template #header>
+        <div class="card-header">
+          <span>权重管理</span>
+          <div class="header-actions">
+            <el-button 
+              size="small" 
+              @click="loadWeightOptimization"
+              :loading="configStore.weightLoading"
+            >
+              <template #icon>
+                <el-icon><View /></el-icon>
+              </template>
+              优化建议
+            </el-button>
+            <el-button 
+              size="small" 
+              type="primary"
+              @click="rebalanceWeights"
+              :loading="configStore.weightLoading"
+            >
+              <template #icon>
+                <el-icon><Connection /></el-icon>
+              </template>
+              智能重平衡
+            </el-button>
+          </div>
+        </div>
+      </template>
+
+      <!-- 权重分配图表 -->
+      <el-row :gutter="20">
+        <el-col :span="12">
+          <div class="chart-container">
+            <h4>权重分配比例</h4>
+            <div id="weight-pie-chart" style="height: 300px;"></div>
+          </div>
+        </el-col>
+        <el-col :span="12">
+          <div class="chart-container">
+            <h4>负载均衡效果评分</h4>
+            <div class="effectiveness-score">
+              <el-progress 
+                type="circle" 
+                :percentage="loadBalanceEffectiveness" 
+                :color="getEffectivenessColor(loadBalanceEffectiveness)"
+                :width="120"
+              />
+              <div class="score-description">
+                <p>{{ getEffectivenessDescription(loadBalanceEffectiveness) }}</p>
+              </div>
+            </div>
+          </div>
+        </el-col>
+      </el-row>
+
+      <!-- 优化建议 -->
+      <div v-if="configStore.weightOptimization && configStore.weightOptimization.optimization_needed" class="optimization-suggestions">
+        <h4>优化建议</h4>
+        <el-alert
+          title="发现权重优化机会"
+          type="info"
+          :description="`总体评分: ${configStore.weightOptimization.overall_score.toFixed(1)}/100`"
+          show-icon
+          :closable="false"
+        />
+        <div class="suggestions-list">
+          <el-card 
+            v-for="suggestion in configStore.weightOptimization.suggestions" 
+            :key="suggestion.key_id"
+            class="suggestion-card"
+          >
+            <div class="suggestion-content">
+              <div class="suggestion-header">
+                <strong>{{ suggestion.key_id }}</strong>
+                <el-tag type="warning">{{ suggestion.current_weight }} → {{ suggestion.suggested_weight }}</el-tag>
+              </div>
+              <p class="suggestion-reason">{{ suggestion.reason }}</p>
+              <p class="suggestion-impact">{{ suggestion.impact }}</p>
+              <el-button 
+                size="small" 
+                type="primary"
+                @click="applyOptimizationSuggestion(suggestion)"
+                :loading="configStore.weightLoading"
+              >
+                应用建议
+              </el-button>
+            </div>
+          </el-card>
+        </div>
+      </div>
+    </el-card>
+
     <!-- 密钥列表 -->
     <el-card v-loading="configStore.loading">
       <el-table 
@@ -66,11 +160,26 @@
           </template>
         </el-table-column>
         
-        <el-table-column prop="weight" label="权重" width="80">
+        <el-table-column label="权重" width="120">
           <template #default="{ row }">
-            <el-tag :type="row.weight > 0 ? 'success' : 'info'">
-              {{ row.weight }}
-            </el-tag>
+            <div class="weight-cell">
+              <el-input-number
+                v-if="editingWeight === row.id"
+                v-model="tempWeight"
+                :min="0"
+                :max="1000"
+                size="small"
+                @blur="saveWeight(row.id)"
+                @keyup.enter="saveWeight(row.id)"
+                style="width: 80px;"
+              />
+              <div v-else class="weight-display" @click="startEditWeight(row.id, row.weight)">
+                <el-tag :type="row.weight > 0 ? 'success' : 'info'">
+                  {{ row.weight }}
+                </el-tag>
+                <el-icon class="edit-icon"><Edit /></el-icon>
+              </div>
+            </div>
           </template>
         </el-table-column>
         
@@ -186,7 +295,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { ElMessage, type FormInstance } from 'element-plus'
 import { 
   Plus, 
@@ -195,11 +304,12 @@ import {
   View, 
   Hide, 
   CopyDocument, 
-  Connection 
+  Connection
 } from '@element-plus/icons-vue'
 import { useConfigStore } from '../stores/config'
 import { configApi } from '../api/config'
-import type { ApiKey } from '../types'
+import type { ApiKey, WeightOptimizationSuggestion } from '../types'
+import * as echarts from 'echarts'
 
 const configStore = useConfigStore()
 const keyFormRef = ref<FormInstance>()
@@ -209,6 +319,13 @@ const showAddDialog = ref(false)
 const editingKey = ref<ApiKey | null>(null)
 const visibleKeys = ref(new Set<string>())
 const testingKeys = ref(new Set<string>())
+
+// 权重编辑状态
+const editingWeight = ref<string | null>(null)
+const tempWeight = ref(0)
+
+// 图表实例
+let pieChart: echarts.ECharts | null = null
 
 // 表单数据
 const keyForm = ref({
@@ -245,6 +362,19 @@ const totalWeight = computed(() => apiKeys.value.reduce((sum, key) => sum + key.
 const totalRateLimit = computed(() => 
   apiKeys.value.reduce((sum, key) => sum + key.max_requests_per_minute, 0)
 )
+
+// 权重管理相关计算属性
+const loadBalanceEffectiveness = computed(() => {
+  return configStore.weightStats?.load_balance_effectiveness || 0
+})
+
+const weightChartData = computed(() => {
+  const activeKeys = apiKeys.value.filter(key => key.weight > 0)
+  return activeKeys.map(key => ({
+    name: key.id,
+    value: key.weight
+  }))
+})
 
 // 方法
 function maskApiKey(key: string): string {
@@ -348,11 +478,151 @@ function closeKeyDialog() {
   keyFormRef.value?.clearValidate()
 }
 
-// 初始化
-onMounted(() => {
-  if (!configStore.config) {
-    configStore.loadConfig()
+// 权重管理相关方法
+function startEditWeight(keyId: string, currentWeight: number) {
+  editingWeight.value = keyId
+  tempWeight.value = currentWeight
+  nextTick(() => {
+    // 自动聚焦到输入框
+    const input = document.querySelector('.el-input-number__input') as HTMLInputElement
+    if (input) {
+      input.focus()
+      input.select()
+    }
+  })
+}
+
+async function saveWeight(keyId: string) {
+  if (editingWeight.value !== keyId) return
+  
+  try {
+    await configStore.updateKeyWeight(keyId, tempWeight.value)
+    ElMessage.success('权重更新成功')
+    // 更新图表
+    updateWeightChart()
+  } catch (error) {
+    console.error('更新权重失败:', error)
+    ElMessage.error('更新权重失败')
+  } finally {
+    editingWeight.value = null
   }
+}
+
+async function loadWeightOptimization() {
+  try {
+    await configStore.loadWeightOptimization()
+    ElMessage.success('优化建议加载成功')
+  } catch (error) {
+    console.error('加载优化建议失败:', error)
+    ElMessage.error('加载优化建议失败')
+  }
+}
+
+async function rebalanceWeights() {
+  try {
+    await configStore.rebalanceWeights()
+    ElMessage.success('智能重平衡完成')
+    // 更新图表
+    updateWeightChart()
+  } catch (error) {
+    console.error('重平衡失败:', error)
+    ElMessage.error('重平衡失败')
+  }
+}
+
+async function applyOptimizationSuggestion(suggestion: WeightOptimizationSuggestion) {
+  try {
+    await configStore.updateKeyWeight(suggestion.key_id, suggestion.suggested_weight)
+    ElMessage.success(`已将 ${suggestion.key_id} 权重调整为 ${suggestion.suggested_weight}`)
+    // 重新加载优化建议
+    await configStore.loadWeightOptimization()
+    // 更新图表
+    updateWeightChart()
+  } catch (error) {
+    console.error('应用优化建议失败:', error)
+    ElMessage.error('应用优化建议失败')
+  }
+}
+
+function getEffectivenessColor(score: number) {
+  if (score >= 80) return '#67c23a'
+  if (score >= 60) return '#e6a23c'
+  return '#f56c6c'
+}
+
+function getEffectivenessDescription(score: number) {
+  if (score >= 80) return '负载均衡效果优秀'
+  if (score >= 60) return '负载均衡效果良好'
+  if (score >= 40) return '负载均衡效果一般'
+  return '建议优化权重分配'
+}
+
+function initWeightChart() {
+  const chartDom = document.getElementById('weight-pie-chart')
+  if (!chartDom) return
+  
+  pieChart = echarts.init(chartDom)
+  updateWeightChart()
+}
+
+function updateWeightChart() {
+  if (!pieChart) return
+  
+  const option = {
+    title: {
+      text: `总权重: ${totalWeight.value}`,
+      left: 'center',
+      textStyle: {
+        fontSize: 14,
+        color: '#666'
+      }
+    },
+    tooltip: {
+      trigger: 'item',
+      formatter: '{a} <br/>{b}: {c} ({d}%)'
+    },
+    series: [
+      {
+        name: '权重分配',
+        type: 'pie',
+        radius: ['40%', '70%'],
+        center: ['50%', '60%'],
+        data: weightChartData.value,
+        emphasis: {
+          itemStyle: {
+            shadowBlur: 10,
+            shadowOffsetX: 0,
+            shadowColor: 'rgba(0, 0, 0, 0.5)'
+          }
+        },
+        label: {
+          show: true,
+          formatter: '{b}\n{c} ({d}%)'
+        }
+      }
+    ]
+  }
+  
+  pieChart.setOption(option)
+}
+
+// 初始化
+onMounted(async () => {
+  if (!configStore.config) {
+    await configStore.loadConfig()
+  }
+  
+  // 加载权重统计
+  try {
+    await configStore.loadWeightStats()
+  } catch (error) {
+    console.error('加载权重统计失败:', error)
+  }
+  
+  // 初始化图表
+  nextTick(() => {
+    initWeightChart()
+  })
 })
 </script>
 
@@ -414,5 +684,115 @@ onMounted(() => {
 :deep(.el-statistic__head) {
   color: #6b7280;
   margin-bottom: 8px;
+}
+
+/* 权重管理样式 */
+.weight-management-card {
+  margin-bottom: 24px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.chart-container {
+  text-align: center;
+}
+
+.chart-container h4 {
+  margin-bottom: 16px;
+  color: #1f2937;
+}
+
+.effectiveness-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.score-description p {
+  margin: 0;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.optimization-suggestions {
+  margin-top: 24px;
+}
+
+.optimization-suggestions h4 {
+  margin-bottom: 16px;
+  color: #1f2937;
+}
+
+.suggestions-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.suggestion-card {
+  border-left: 4px solid #e6a23c;
+}
+
+.suggestion-content {
+  padding: 16px;
+}
+
+.suggestion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.suggestion-reason {
+  margin: 8px 0;
+  color: #374151;
+  font-size: 14px;
+}
+
+.suggestion-impact {
+  margin: 8px 0 12px;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+/* 权重编辑样式 */
+.weight-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.weight-display {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.weight-display:hover {
+  opacity: 0.7;
+}
+
+.edit-icon {
+  opacity: 0;
+  transition: opacity 0.2s;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.weight-display:hover .edit-icon {
+  opacity: 1;
 }
 </style>

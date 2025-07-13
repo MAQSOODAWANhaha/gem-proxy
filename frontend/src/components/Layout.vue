@@ -60,6 +60,23 @@
           >
             <el-icon><Refresh /></el-icon>
           </el-button>
+
+          <!-- 用户菜单 -->
+          <el-dropdown @command="handleUserMenuCommand">
+            <el-button type="text" size="large" class="user-menu">
+              <el-icon><User /></el-icon>
+              <span>{{ authStore.currentUser?.role || '管理员' }}</span>
+              <el-icon><ArrowDown /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="logout">
+                  <el-icon><SwitchButton /></el-icon>
+                  登出
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </el-header>
 
@@ -73,22 +90,30 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useConfigStore } from '../stores/config'
+import { useAuthStore } from '../stores/auth'
 import { 
   CircleCheckFilled,
   CircleCloseFilled,
-  Refresh
+  Refresh,
+  User,
+  ArrowDown,
+  SwitchButton
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
+const router = useRouter()
 const configStore = useConfigStore()
+const authStore = useAuthStore()
 
 // 菜单项配置
 const menuItems = [
   { path: '/dashboard', title: '控制台', icon: 'Monitor' },
   { path: '/config', title: '代理配置', icon: 'Setting' },
   { path: '/api-keys', title: 'API 密钥', icon: 'Key' },
+  { path: '/load-balancing', title: '负载均衡', icon: 'Scale' },
   { path: '/tls-config', title: 'TLS 配置', icon: 'Lock' },
   { path: '/monitoring', title: '监控指标', icon: 'DataAnalysis' }
 ]
@@ -145,10 +170,39 @@ async function refreshData() {
   }
 }
 
+// 用户菜单处理
+async function handleUserMenuCommand(command: string) {
+  if (command === 'logout') {
+    try {
+      await ElMessageBox.confirm(
+        '确定要退出登录吗？',
+        '确认',
+        {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }
+      )
+      
+      await authStore.logout()
+      ElMessage.success('已成功退出登录')
+      router.push('/login')
+    } catch (error) {
+      if (error !== 'cancel') {
+        console.error('登出失败:', error)
+        ElMessage.error('登出失败')
+      }
+    }
+  }
+}
+
 // 定时健康检查
 let healthCheckInterval: number | null = null
 
-onMounted(() => {
+onMounted(async () => {
+  // 初始化认证
+  await authStore.initializeAuth()
+  
   // 初始加载
   refreshData()
   
@@ -214,6 +268,14 @@ onUnmounted(() => {
 
 .health-indicator {
   cursor: pointer;
+}
+
+.user-menu {
+  color: #606266;
+}
+
+.user-menu:hover {
+  color: #409EFF;
 }
 
 .main-content {

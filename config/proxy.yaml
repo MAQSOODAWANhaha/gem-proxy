@@ -1,41 +1,49 @@
 server:
-  host: "0.0.0.0"
-  port: 8443
+  host: 0.0.0.0
+  port: 8080
   workers: 4
   max_connections: 10000
   tls:
-    enabled: true
-    cert_path: "certs/cert.pem"
-    key_path: "certs/key.pem"
+    enabled: false
+    cert_path: certs/cert.pem
+    key_path: certs/key.pem
     acme:
-      enabled: false  # 默认使用自签证书，生产环境可启用
+      enabled: false
       domains:
-        - "proxy.example.com"
-      email: "admin@example.com"
-      directory_url: "https://acme-staging-v02.api.letsencrypt.org/directory"
-
+      - proxy.example.com
+      email: admin@example.com
+      directory_url: https://acme-staging-v02.api.letsencrypt.org/directory
 gemini:
-  base_url: "https://generativelanguage.googleapis.com"
-  timeout_seconds: 30
   api_keys:
-    - id: "key1"
-      key: "AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" # Replace with your actual key
-      weight: 100
-      max_requests_per_minute: 60
-    - id: "key2"
-      key: "AIzaSyYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY" # Replace with your actual key
-      weight: 100
-      max_requests_per_minute: 60
-
+  - id: key1
+    key: AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    weight: 100
+    max_requests_per_minute: 60
+  - id: key2
+    key: AIzaSyYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY
+    weight: 100
+    max_requests_per_minute: 60
+  - id: key3
+    key: AIzaSyZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ
+    weight: 100
+    max_requests_per_minute: 60
+  base_url: https://generativelanguage.googleapis.com
+  timeout_seconds: 30
 auth:
   enabled: true
-  jwt_secret: "your-super-secret-key-that-is-long-and-secure"
+  jwt_secret: your-super-secret-key-that-is-long-and-secure
   rate_limit_per_minute: 100
-
+  admin_password: admin123456
+  token_expiry_hours: 24
+  refresh_token_enabled: true
+  session_timeout_minutes: 120
+  max_login_attempts: 5
+  lockout_duration_minutes: 30
 metrics:
   enabled: true
-  prometheus_port: 9443  # HTTPS 端口
+  prometheus_port: 9090
   tls:
-    enabled: true
-    cert_path: "certs/api-cert.pem"
-    key_path: "certs/api-key.pem"
+    enabled: false
+    cert_path: certs/api-cert.pem
+    key_path: certs/api-key.pem
+    acme: null

@@ -1,5 +1,14 @@
 import axios from 'axios'
-import type { ProxyConfig, HealthStatus } from '../types'
+import type { 
+  ProxyConfig, 
+  HealthStatus, 
+  WeightStatsResponse,
+  WeightStats,
+  WeightOptimizationResponse,
+  UpdateWeightRequest,
+  BatchUpdateWeightRequest,
+  ApiResponse
+} from '../types'
 
 // 创建 axios 实例
 const api = axios.create({
@@ -117,5 +126,80 @@ export const configApi = {
         resolve(apiKey.startsWith('AIza') && apiKey.length > 20)
       }, 1000)
     })
+  },
+
+  // 权重管理 API
+  
+  // 获取权重统计
+  async getWeightStats(): Promise<ApiResponse<WeightStatsResponse>> {
+    try {
+      const response = await api.get('/weights/stats')
+      return response.data
+    } catch (error) {
+      console.error('获取权重统计失败:', error)
+      throw new Error('无法获取权重统计')
+    }
+  },
+
+  // 获取权重分配详情
+  async getWeightDistribution(): Promise<WeightStats> {
+    try {
+      const response = await api.get('/weights/distribution')
+      return response.data.data || response.data
+    } catch (error) {
+      console.error('获取权重分配失败:', error)
+      throw new Error('无法获取权重分配')
+    }
+  },
+
+  // 更新单个密钥权重
+  async updateKeyWeight(keyId: string, weight: number): Promise<ApiResponse<void>> {
+    try {
+      const request: UpdateWeightRequest = { weight }
+      const response = await api.put(`/weights/${keyId}`, request)
+      return response.data
+    } catch (error) {
+      console.error('更新权重失败:', error)
+      throw new Error('更新权重失败')
+    }
+  },
+
+  // 批量更新权重
+  async batchUpdateWeights(updates: BatchUpdateWeightRequest): Promise<void> {
+    try {
+      await api.post('/weights/batch', updates)
+    } catch (error) {
+      console.error('批量更新权重失败:', error)
+      throw new Error('批量更新权重失败')
+    }
+  },
+
+  // 智能权重重平衡
+  async rebalanceWeights(): Promise<void> {
+    try {
+      await api.post('/weights/rebalance')
+    } catch (error) {
+      console.error('权重重平衡失败:', error)
+      throw new Error('权重重平衡失败')
+    }
+  },
+
+  // 获取权重优化建议
+  async getWeightOptimization(): Promise<WeightOptimizationResponse> {
+    try {
+      const response = await api.get('/weights/optimize')
+      return response.data.data || response.data
+    } catch (error) {
+      console.error('获取优化建议失败:', error)
+      throw new Error('无法获取优化建议')
+    }
   }
 }
+
+// 导出权重管理相关函数
+export const getWeightStats = configApi.getWeightStats
+export const updateKeyWeight = configApi.updateKeyWeight
+export const batchUpdateWeights = configApi.batchUpdateWeights
+export const getOptimizationSuggestions = configApi.getWeightOptimization
+export const rebalanceWeights = configApi.rebalanceWeights
+export const getWeightDistribution = configApi.getWeightDistribution

@@ -7,6 +7,7 @@ use crate::proxy::acme_service::{AcmeChallengeService, AcmeChallengeState};
 use crate::proxy::GeminiProxyService;
 use crate::utils::health_check::HealthChecker;
 use crate::api::config::ConfigState;
+use crate::api::weight_management::WeightManagementState;
 use crate::utils::tls::{acme_renewal_loop, generate_self_signed_cert_if_not_exists};
 use crate::utils::performance::PerformanceOptimizer;
 use crate::utils::error::ErrorHandler;
@@ -66,6 +67,7 @@ fn main() {
         let config_state = ConfigState::new(config.clone(), "config/proxy.yaml".to_string());
         let performance_optimizer_clone = performance_optimizer.clone();
         let error_handler_clone = error_handler.clone();
+        let key_manager_clone = key_manager.clone();
         
         std::thread::spawn(move || {
             let runtime = Builder::new_current_thread().enable_all().build().unwrap();
@@ -76,7 +78,8 @@ fn main() {
                     total_keys, 
                     config_state,
                     performance_optimizer_clone,
-                    error_handler_clone
+                    error_handler_clone,
+                    key_manager_clone
                 ).await;
             });
         });
@@ -150,6 +153,7 @@ async fn start_api_server(
     config_state: ConfigState,
     performance_optimizer: Arc<PerformanceOptimizer>,
     error_handler: Arc<ErrorHandler>,
+    key_manager: Arc<KeyManager>,
 ) {
     use warp::Filter;
     
@@ -216,14 +220,36 @@ async fn start_api_server(
     let api_config = config_state.get_config().await;
     
     // 配置API路由
-    let config_routes = crate::api::config::config_routes(config_state);
+    let config_routes = crate::api::config::config_routes(config_state.clone());
+    
+    // 权重管理路由
+    let weight_state = WeightManagementState::new(config_state);
+    weight_state.set_key_manager(key_manager.clone()).await;
+    let weight_routes = crate::api::weight_management::weight_management_routes(weight_state);
+    
+    // 负载均衡统计路由
+    let stats_state = crate::api::load_balancing_stats::StatsState::new(Some(key_manager));
+    let stats_routes = crate::api::load_balancing_stats::load_balancing_stats_routes(stats_state);
+    
+    // 认证路由 (无需认证保护)
+    let auth_state = crate::api::auth::AuthState::new(Arc::new(api_config.clone()));
+    let auth_routes = crate::api::auth::auth_routes(auth_state.clone());
+    
+    // API路由 (暂时不添加认证保护，在前端通过路由守卫控制)
+    let api_routes = warp::path("api")
+        .and(
+            config_routes
+                .or(weight_routes)
+                .or(stats_routes)
+        );
     
     // 组合所有路由
     let routes = metrics_route
         .or(health_route)
         .or(performance_route)
         .or(errors_route)
-        .or(config_routes)
+        .or(auth_routes)
+        .or(api_routes)
         .with(crate::api::handlers::cors())
         .with(crate::api::handlers::with_logging())
         .recover(crate::api::handlers::handle_rejection);
@@ -238,7 +264,7 @@ async fn start_api_server(
             ).expect("Failed to generate API server certificate");
             
             tracing::info!("API server running on https://127.0.0.1:{} (HTTPS)", port);
-            tracing::info!("Available endpoints: /metrics, /health, /performance, /errors, /api/config");
+            tracing::info!("Available endpoints: /metrics, /health, /performance, /errors, /api/config, /api/weights/*, /api/stats/*");
             
             warp::serve(routes)
                 .tls()
@@ -248,12 +274,12 @@ async fn start_api_server(
                 .await;
         } else {
             tracing::info!("API server running on http://127.0.0.1:{} (HTTP)", port);
-            tracing::info!("Available endpoints: /metrics, /health, /performance, /errors, /api/config");
+            tracing::info!("Available endpoints: /metrics, /health, /performance, /errors, /api/config, /api/weights/*, /api/stats/*");
             warp::serve(routes).run(([127, 0, 0, 1], port)).await;
         }
     } else {
         tracing::info!("API server running on http://127.0.0.1:{} (HTTP)", port);
-        tracing::info!("Available endpoints: /metrics, /health, /performance, /errors, /api/config");
+        tracing::info!("Available endpoints: /metrics, /health, /performance, /errors, /api/config, /api/weights/*");
         warp::serve(routes).run(([127, 0, 0, 1], port)).await;
     }
 }

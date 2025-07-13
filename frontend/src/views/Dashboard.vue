@@ -2,6 +2,85 @@
   <div class="dashboard">
     <h1>控制台</h1>
     
+    <!-- 权重状态概览 -->
+    <el-row :gutter="20" class="weight-overview">
+      <el-col :span="6">
+        <el-card class="weight-stat-card">
+          <div class="weight-stat-content">
+            <div class="weight-stat-icon">
+              <el-icon color="#409eff" size="28"><ScaleToOriginal /></el-icon>
+            </div>
+            <div class="weight-stat-info">
+              <div class="weight-stat-value">{{ weightStats.total_weight || 0 }}</div>
+              <div class="weight-stat-label">总权重</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      
+      <el-col :span="6">
+        <el-card class="weight-stat-card">
+          <div class="weight-stat-content">
+            <div class="weight-stat-icon">
+              <el-icon color="#67c23a" size="28"><Connection /></el-icon>
+            </div>
+            <div class="weight-stat-info">
+              <div class="weight-stat-value">{{ weightStats.active_keys_count || 0 }}</div>
+              <div class="weight-stat-label">活跃权重</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      
+      <el-col :span="6">
+        <el-card class="weight-stat-card">
+          <div class="weight-stat-content">
+            <div class="weight-stat-icon">
+              <el-icon color="#e6a23c" size="28"><TrendCharts /></el-icon>
+            </div>
+            <div class="weight-stat-info">
+              <div class="weight-stat-value">{{ Math.round(weightStats.load_balance_effectiveness || 0) }}%</div>
+              <div class="weight-stat-label">均衡度</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      
+      <el-col :span="6">
+        <el-card class="weight-stat-card">
+          <div class="weight-stat-content">
+            <div class="weight-stat-icon">
+              <el-icon :color="weightHealthColor" size="28">
+                <CircleCheckFilled v-if="isWeightHealthy" />
+                <WarningFilled v-else />
+              </el-icon>
+            </div>
+            <div class="weight-stat-info">
+              <div class="weight-stat-value">{{ weightHealthText }}</div>
+              <div class="weight-stat-label">权重状态</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <!-- 权重监控区域 -->
+    <el-row :gutter="20" class="weight-monitoring">
+      <el-col :span="12">
+        <WeightDistributionChart />
+      </el-col>
+      <el-col :span="12">
+        <WeightRealTimeMonitor />
+      </el-col>
+    </el-row>
+
+    <!-- 权重趋势监控 -->
+    <el-row :gutter="20" class="weight-trending">
+      <el-col :span="24">
+        <WeightTrendChart />
+      </el-col>
+    </el-row>
+
     <!-- 统计卡片 -->
     <el-row :gutter="20" class="stats-cards">
       <el-col :span="6">
@@ -154,17 +233,32 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, reactive } from 'vue'
 import { useConfigStore } from '../stores/config'
+import { getWeightStats } from '@/api/config'
+import type { WeightStatsResponse } from '@/types'
+import { WeightDistributionChart, WeightRealTimeMonitor, WeightTrendChart } from '@/components/weight'
 import { 
   Key, 
   CircleCheckFilled, 
   CircleCloseFilled,
   Monitor,
-  WarningFilled
+  WarningFilled,
+  ScaleToOriginal,
+  Connection,
+  TrendCharts
 } from '@element-plus/icons-vue'
 
 const configStore = useConfigStore()
+
+// 权重状态管理
+const weightStats = reactive<Partial<WeightStatsResponse>>({
+  total_weight: 0,
+  active_keys_count: 0,
+  total_keys_count: 0,
+  distributions: [],
+  load_balance_effectiveness: 0
+})
 
 // 计算属性
 const apiKeysCount = computed(() => configStore.apiKeysCount)
@@ -181,10 +275,50 @@ const healthStatusColor = computed(() => {
   return configStore.healthStatus.status === 'healthy' ? '#67c23a' : '#f56c6c'
 })
 
+// 权重相关计算属性
+const isWeightHealthy = computed(() => {
+  const effectiveness = weightStats.load_balance_effectiveness || 0
+  return effectiveness >= 70 && weightStats.active_keys_count === weightStats.total_keys_count
+})
+
+const weightHealthText = computed(() => {
+  const effectiveness = weightStats.load_balance_effectiveness || 0
+  if (effectiveness >= 90) return '优秀'
+  if (effectiveness >= 70) return '良好'
+  if (effectiveness >= 50) return '一般'
+  return '需优化'
+})
+
+const weightHealthColor = computed(() => {
+  const effectiveness = weightStats.load_balance_effectiveness || 0
+  if (effectiveness >= 90) return '#67c23a'
+  if (effectiveness >= 70) return '#e6a23c'
+  return '#f56c6c'
+})
+
 // 方法
 function refreshHealth() {
   configStore.checkHealth()
 }
+
+// 加载权重统计数据
+async function loadWeightStats() {
+  try {
+    const response = await getWeightStats()
+    if (response.success && response.data) {
+      Object.assign(weightStats, response.data)
+    }
+  } catch (error) {
+    console.error('加载权重统计失败:', error)
+  }
+}
+
+// 初始化
+onMounted(() => {
+  loadWeightStats()
+  // 定期刷新权重数据
+  setInterval(loadWeightStats, 30000) // 每30秒刷新一次
+})
 
 function getCheckStatusColor(status: string) {
   switch (status) {
@@ -207,6 +341,75 @@ function getCheckDisplayName(name: string) {
 <style scoped>
 .dashboard {
   max-width: 1200px;
+}
+
+/* 权重概览样式 */
+.weight-overview {
+  margin-bottom: 24px;
+}
+
+.weight-stat-card {
+  cursor: pointer;
+  transition: all 0.3s;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+}
+
+.weight-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+}
+
+.weight-stat-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: white;
+}
+
+.weight-stat-icon {
+  flex-shrink: 0;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  backdrop-filter: blur(10px);
+}
+
+.weight-stat-info {
+  flex: 1;
+}
+
+.weight-stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 4px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.weight-stat-label {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+}
+
+/* 权重监控区域 */
+.weight-monitoring {
+  margin-bottom: 32px;
+}
+
+:deep(.weight-monitoring .el-card) {
+  height: 100%;
+  min-height: 500px;
+}
+
+/* 权重趋势监控 */
+.weight-trending {
+  margin-bottom: 32px;
+}
+
+:deep(.weight-trending .el-card) {
+  min-height: 500px;
 }
 
 .stats-cards {

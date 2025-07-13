@@ -54,6 +54,12 @@ pub struct AuthConfig {
     pub enabled: bool,
     pub jwt_secret: String,
     pub rate_limit_per_minute: u32,
+    pub admin_password: String,
+    pub token_expiry_hours: u64,
+    pub refresh_token_enabled: bool,
+    pub session_timeout_minutes: u64,
+    pub max_login_attempts: u32,
+    pub lockout_duration_minutes: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -173,6 +179,24 @@ impl ProxyConfig {
             }
             if self.auth.rate_limit_per_minute == 0 {
                 return Err("速率限制值不能为0".into());
+            }
+            if self.auth.admin_password.is_empty() {
+                return Err("启用认证时管理员密码不能为空".into());
+            }
+            if self.auth.admin_password.len() < 8 {
+                return Err("管理员密码长度至少需要8个字符".into());
+            }
+            if self.auth.token_expiry_hours == 0 {
+                return Err("Token过期时间不能为0".into());
+            }
+            if self.auth.session_timeout_minutes == 0 {
+                return Err("会话超时时间不能为0".into());
+            }
+            if self.auth.max_login_attempts == 0 {
+                return Err("最大登录尝试次数不能为0".into());
+            }
+            if self.auth.lockout_duration_minutes == 0 {
+                return Err("锁定持续时间不能为0".into());
             }
         }
         

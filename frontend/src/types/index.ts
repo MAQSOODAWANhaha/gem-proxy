@@ -101,3 +101,63 @@ export interface ApiResponse<T = any> {
   message?: string
   error?: string
 }
+
+// 权重管理相关类型
+export interface WeightDistribution {
+  key_id: string
+  weight: number
+  percentage: number
+  is_active: boolean
+  current_requests: number
+  max_requests_per_minute: number
+  failure_count: number
+}
+
+export interface WeightStatsResponse {
+  total_weight: number
+  active_keys_count: number
+  total_keys_count: number
+  distributions: WeightDistribution[]
+  load_balance_effectiveness: number
+}
+
+export interface WeightStats {
+  total_weight: number
+  active_keys_count: number
+  total_keys_count: number
+  key_distributions: KeyWeightInfo[]
+}
+
+export interface KeyWeightInfo {
+  key_id: string
+  weight: number
+  percentage: number
+  current_weight: number
+}
+
+export interface WeightOptimizationSuggestion {
+  key_id: string
+  current_weight: number
+  suggested_weight: number
+  reason: string
+  impact: string
+}
+
+export interface WeightOptimizationResponse {
+  suggestions: WeightOptimizationSuggestion[]
+  overall_score: number
+  optimization_needed: boolean
+}
+
+export interface UpdateWeightRequest {
+  weight: number
+}
+
+export interface WeightUpdate {
+  key_id: string
+  weight: number
+}
+
+export interface BatchUpdateWeightRequest {
+  updates: WeightUpdate[]
+}
