@@ -343,20 +343,20 @@ pub fn load_balancing_stats_routes(
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     let stats_state = warp::any().map(move || state.clone());
 
-    // GET /api/stats/load-balancing - 获取负载均衡统计
-    let get_load_balancing_stats = warp::path!("api" / "stats" / "load-balancing")
+    // GET /stats/load-balancing - 获取负载均衡统计
+    let get_load_balancing_stats = warp::path!("stats" / "load-balancing")
         .and(warp::get())
         .and(stats_state.clone())
         .and_then(get_load_balancing_stats_handler);
 
-    // GET /api/stats/time-based - 获取时间段统计
-    let get_time_based_stats = warp::path!("api" / "stats" / "time-based")
+    // GET /stats/time-based - 获取时间段统计
+    let get_time_based_stats = warp::path!("stats" / "time-based")
         .and(warp::get())
         .and(stats_state.clone())
         .and_then(get_time_based_stats_handler);
 
-    // GET /api/stats/response-time - 获取响应时间统计
-    let get_response_time_stats = warp::path!("api" / "stats" / "response-time")
+    // GET /stats/response-time - 获取响应时间统计
+    let get_response_time_stats = warp::path!("stats" / "response-time")
         .and(warp::get())
         .and(stats_state.clone())
         .and_then(get_response_time_stats_handler);

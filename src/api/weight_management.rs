@@ -93,40 +93,40 @@ pub fn weight_management_routes(
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     let weight_state = warp::any().map(move || state.clone());
 
-    // GET /api/weights/stats - 获取权重统计
-    let get_stats = warp::path!("api" / "weights" / "stats")
+    // GET /weights/stats - 获取权重统计
+    let get_stats = warp::path!("weights" / "stats")
         .and(warp::get())
         .and(weight_state.clone())
         .and_then(get_weight_stats_handler);
 
-    // PUT /api/weights/{key_id} - 更新单个密钥权重
-    let update_weight = warp::path!("api" / "weights" / String)
+    // PUT /weights/{key_id} - 更新单个密钥权重
+    let update_weight = warp::path!("weights" / String)
         .and(warp::put())
         .and(warp::body::json())
         .and(weight_state.clone())
         .and_then(update_weight_handler);
 
-    // POST /api/weights/batch - 批量更新权重
-    let batch_update = warp::path!("api" / "weights" / "batch")
+    // POST /weights/batch - 批量更新权重
+    let batch_update = warp::path!("weights" / "batch")
         .and(warp::post())
         .and(warp::body::json())
         .and(weight_state.clone())
         .and_then(batch_update_weights_handler);
 
-    // POST /api/weights/rebalance - 智能权重重新平衡
-    let rebalance = warp::path!("api" / "weights" / "rebalance")
+    // POST /weights/rebalance - 智能权重重新平衡
+    let rebalance = warp::path!("weights" / "rebalance")
         .and(warp::post())
         .and(weight_state.clone())
         .and_then(rebalance_weights_handler);
 
-    // GET /api/weights/optimize - 获取权重优化建议
-    let optimize = warp::path!("api" / "weights" / "optimize")
+    // GET /weights/optimize - 获取权重优化建议
+    let optimize = warp::path!("weights" / "optimize")
         .and(warp::get())
         .and(weight_state.clone())
         .and_then(get_optimization_suggestions_handler);
 
-    // GET /api/weights/distribution - 获取权重分配详情
-    let distribution = warp::path!("api" / "weights" / "distribution")
+    // GET /weights/distribution - 获取权重分配详情
+    let distribution = warp::path!("weights" / "distribution")
         .and(warp::get())
         .and(weight_state.clone())
         .and_then(get_weight_distribution_handler);

@@ -101,21 +101,21 @@ pub fn config_routes(
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     let config_state = warp::any().map(move || state.clone());
 
-    // GET /api/config - 获取配置
-    let get_config = warp::path!("api" / "config")
+    // GET /config - 获取配置
+    let get_config = warp::path!("config")
         .and(warp::get())
         .and(config_state.clone())
         .and_then(get_config_handler);
 
-    // PUT /api/config - 更新配置
-    let put_config = warp::path!("api" / "config")
+    // PUT /config - 更新配置
+    let put_config = warp::path!("config")
         .and(warp::put())
         .and(warp::body::json())
         .and(config_state.clone())
         .and_then(update_config_handler);
 
-    // POST /api/config/reload - 重新加载配置
-    let reload_config = warp::path!("api" / "config" / "reload")
+    // POST /config/reload - 重新加载配置
+    let reload_config = warp::path!("config" / "reload")
         .and(warp::post())
         .and(config_state.clone())
         .and_then(reload_config_handler);

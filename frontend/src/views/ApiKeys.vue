@@ -1,7 +1,6 @@
 <template>
-  <div class="api-keys">
-    <div class="page-header">
-      <h1>API 密钥管理</h1>
+  <AppPage title="API 密钥管理" description="管理 Gemini API 密钥的权重配置与状态监控">
+    <template #actions>
       <el-button 
         type="primary" 
         @click="showAddDialog = true"
@@ -9,65 +8,74 @@
       >
         添加密钥
       </el-button>
-    </div>
+    </template>
 
-    <!-- 统计信息 -->
-    <el-row :gutter="16" class="stats-row">
-      <el-col :span="6">
-        <el-statistic title="总密钥数" :value="apiKeys.length" />
-      </el-col>
-      <el-col :span="6">
-        <el-statistic title="活跃密钥" :value="activeKeysCount" />
-      </el-col>
-      <el-col :span="6">
-        <el-statistic title="总权重" :value="totalWeight" />
-      </el-col>
-      <el-col :span="6">
-        <el-statistic title="每分钟限额" :value="totalRateLimit" />
-      </el-col>
-    </el-row>
+    <!-- API 密钥统计概览 -->
+    <ContentCard title="API 密钥统计概览" :span="24">
+      <el-row :gutter="24">
+        <StatCard 
+          :span="6"
+          title="总密钥数"
+          :value="apiKeys.length"
+          :icon="Key"
+          icon-color="#409eff"
+        />
+        <StatCard 
+          :span="6"
+          title="活跃密钥"
+          :value="activeKeysCount"
+          :icon="CircleCheckFilled"
+          icon-color="#67c23a"
+        />
+        <StatCard 
+          :span="6"
+          title="总权重"
+          :value="totalWeight"
+          :icon="ScaleToOriginal"
+          icon-color="#e6a23c"
+        />
+        <StatCard 
+          :span="6"
+          title="每分钟限额"
+          :value="totalRateLimit"
+          :icon="TrendCharts"
+          icon-color="#f56c6c"
+        />
+      </el-row>
+    </ContentCard>
 
     <!-- 权重管理工具栏 -->
-    <el-card class="weight-management-card">
-      <template #header>
-        <div class="card-header">
-          <span>权重管理</span>
-          <div class="header-actions">
-            <el-button 
-              size="small" 
-              @click="loadWeightOptimization"
-              :loading="configStore.weightLoading"
-            >
-              <template #icon>
-                <el-icon><View /></el-icon>
-              </template>
-              优化建议
-            </el-button>
-            <el-button 
-              size="small" 
-              type="primary"
-              @click="rebalanceWeights"
-              :loading="configStore.weightLoading"
-            >
-              <template #icon>
-                <el-icon><Connection /></el-icon>
-              </template>
-              智能重平衡
-            </el-button>
-          </div>
-        </div>
+    <ContentCard title="权重管理" :span="24">
+      <template #actions>
+        <el-button 
+          size="small" 
+          @click="loadWeightOptimization"
+          :loading="configStore.weightLoading"
+        >
+          <el-icon><View /></el-icon>
+          优化建议
+        </el-button>
+        <el-button 
+          size="small" 
+          type="primary"
+          @click="rebalanceWeights"
+          :loading="configStore.weightLoading"
+        >
+          <el-icon><Connection /></el-icon>
+          智能重平衡
+        </el-button>
       </template>
 
       <!-- 权重分配图表 -->
       <el-row :gutter="20">
-        <el-col :span="12">
-          <div class="chart-container">
+        <el-col :xs="24" :sm="24" :md="12" :lg="12" :xl="12">
+          <div class="chart-container chart-responsive">
             <h4>权重分配比例</h4>
-            <div id="weight-pie-chart" style="height: 300px;"></div>
+            <div id="weight-pie-chart" style="height: 300px; width: 100%;"></div>
           </div>
         </el-col>
-        <el-col :span="12">
-          <div class="chart-container">
+        <el-col :xs="24" :sm="24" :md="12" :lg="12" :xl="12">
+          <div class="chart-container chart-responsive">
             <h4>负载均衡效果评分</h4>
             <div class="effectiveness-score">
               <el-progress 
@@ -119,15 +127,15 @@
           </el-card>
         </div>
       </div>
-    </el-card>
+    </ContentCard>
 
     <!-- 密钥列表 -->
-    <el-card v-loading="configStore.loading">
-      <el-table 
-        :data="apiKeys" 
-        style="width: 100%"
-        :row-key="(row: ApiKey) => row.id"
-      >
+    <ContentCard title="密钥列表" :span="24" :loading="configStore.loading">
+        <el-table 
+          :data="apiKeys" 
+          style="width: 100%"
+          :row-key="(row: ApiKey) => row.id"
+        >
         <el-table-column prop="id" label="密钥 ID" width="120" />
         
         <el-table-column label="API 密钥" min-width="200">
@@ -183,7 +191,7 @@
           </template>
         </el-table-column>
         
-        <el-table-column prop="max_requests_per_minute" label="每分钟限额" width="120" />
+        <el-table-column prop="max_requests_per_minute" label="每分钟限额" width="120" class-name="mobile-hidden" />
         
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
@@ -193,42 +201,44 @@
           </template>
         </el-table-column>
         
-        <el-table-column label="操作" width="200">
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <el-button 
-              size="small" 
-              @click="editApiKey(row)"
-              :icon="Edit"
-            >
-              编辑
-            </el-button>
-            <el-button 
-              size="small" 
-              type="success" 
-              @click="testApiKey(row)"
-              :loading="testingKeys.has(row.id)"
-              :icon="Connection"
-            >
-              测试
-            </el-button>
-            <el-popconfirm
-              title="确定删除这个 API 密钥吗？"
-              @confirm="removeApiKey(row.id)"
-            >
-              <template #reference>
-                <el-button 
-                  size="small" 
-                  type="danger"
-                  :icon="Delete"
-                >
-                  删除
-                </el-button>
-              </template>
-            </el-popconfirm>
+            <div class="table-actions">
+              <el-button 
+                size="small" 
+                @click="editApiKey(row)"
+                :icon="Edit"
+              >
+                编辑
+              </el-button>
+              <el-button 
+                size="small" 
+                type="success" 
+                @click="testApiKey(row)"
+                :loading="testingKeys.has(row.id)"
+                :icon="Connection"
+              >
+                测试
+              </el-button>
+              <el-popconfirm
+                title="确定删除这个 API 密钥吗？"
+                @confirm="removeApiKey(row.id)"
+              >
+                <template #reference>
+                  <el-button 
+                    size="small" 
+                    type="danger"
+                    :icon="Delete"
+                  >
+                    删除
+                  </el-button>
+                </template>
+              </el-popconfirm>
+            </div>
           </template>
         </el-table-column>
-      </el-table>
-    </el-card>
+        </el-table>
+    </ContentCard>
 
     <!-- 添加/编辑密钥对话框 -->
     <el-dialog
@@ -291,7 +301,7 @@
         </el-button>
       </template>
     </el-dialog>
-  </div>
+  </AppPage>
 </template>
 
 <script setup lang="ts">
@@ -304,11 +314,18 @@ import {
   View, 
   Hide, 
   CopyDocument, 
-  Connection
+  Connection,
+  Key,
+  CircleCheckFilled,
+  ScaleToOriginal,
+  TrendCharts
 } from '@element-plus/icons-vue'
 import { useConfigStore } from '../stores/config'
 import { configApi } from '../api/config'
 import type { ApiKey, WeightOptimizationSuggestion } from '../types'
+import AppPage from '../components/layout/AppPage.vue'
+import ContentCard from '../components/layout/ContentCard.vue'
+import StatCard from '../components/layout/StatCard.vue'
 import * as echarts from 'echarts'
 
 const configStore = useConfigStore()
@@ -627,30 +644,23 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.api-keys {
-  max-width: 1200px;
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-
-.stats-row {
-  margin-bottom: 24px;
-}
+/* 使用全局样式和工具类，大幅简化自定义样式 */
 
 .api-key-cell {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+  flex: 1;
 }
 
 .masked-key {
   font-family: 'Courier New', monospace;
   flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .toggle-btn,
@@ -671,39 +681,21 @@ onMounted(async () => {
 }
 
 .form-help {
-  font-size: 12px;
-  color: #6b7280;
-  margin-top: 4px;
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  margin-top: var(--spacing-small);
 }
 
-:deep(.el-statistic__content) {
-  font-size: 24px;
-  font-weight: 600;
-}
+/* 统计卡片样式已由 StatCard 组件统一管理 */
 
-:deep(.el-statistic__head) {
-  color: #6b7280;
-  margin-bottom: 8px;
-}
-
-/* 权重管理样式 */
-.weight-management-card {
-  margin-bottom: 24px;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.header-actions {
-  display: flex;
-  gap: 8px;
-}
+/* 权重管理样式简化 */
 
 .chart-container {
   text-align: center;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .chart-container h4 {

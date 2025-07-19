@@ -1,8 +1,17 @@
 <template>
-  <div class="tls-config">
-    <h1>TLS 配置</h1>
+  <AppPage title="TLS 配置" description="配置 HTTPS 证书和 ACME 自动证书管理">
+    <template #actions>
+      <el-button 
+        type="primary" 
+        @click="saveConfig"
+        :loading="configStore.loading"
+      >
+        保存配置
+      </el-button>
+      <el-button @click="resetForm">重置</el-button>
+    </template>
     
-    <el-card v-loading="configStore.loading">
+    <ContentCard title="TLS 配置管理" :span="24" :loading="configStore.loading">
       <el-form 
         v-if="localConfig"
         ref="formRef"
@@ -15,110 +24,114 @@
           <h3>TLS 基本设置</h3>
         </el-divider>
         
-        <el-form-item label="启用 TLS">
-          <el-switch 
-            v-model="localConfig.server.tls.enabled"
-            active-text="开启"
-            inactive-text="关闭"
-          />
-        </el-form-item>
-        
-        <template v-if="localConfig.server.tls.enabled">
-          <el-form-item label="证书文件路径">
-            <el-input 
-              v-model="localConfig.server.tls.cert_path" 
-              placeholder="例: /path/to/cert.pem"
-            />
-          </el-form-item>
-          
-          <el-form-item label="私钥文件路径">
-            <el-input 
-              v-model="localConfig.server.tls.key_path" 
-              placeholder="例: /path/to/key.pem"
-            />
-          </el-form-item>
-        </template>
+        <el-row :gutter="24">
+          <el-col :span="8">
+            <el-form-item label="启用 TLS">
+              <el-switch 
+                v-model="localConfig.server.tls.enabled"
+                active-text="开启"
+                inactive-text="关闭"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col v-if="localConfig.server.tls.enabled" :span="8">
+            <el-form-item label="证书文件路径">
+              <el-input 
+                v-model="localConfig.server.tls.cert_path" 
+                placeholder="/path/to/cert.pem"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col v-if="localConfig.server.tls.enabled" :span="8">
+            <el-form-item label="私钥文件路径">
+              <el-input 
+                v-model="localConfig.server.tls.key_path" 
+                placeholder="/path/to/key.pem"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
 
         <!-- ACME 配置 -->
         <el-divider content-position="left">
           <h3>ACME 自动证书</h3>
         </el-divider>
         
-        <el-form-item label="启用 ACME">
-          <el-switch 
-            v-model="acmeEnabled"
-            active-text="开启"
-            inactive-text="关闭"
-          />
-        </el-form-item>
+        <el-row :gutter="24">
+          <el-col :span="8">
+            <el-form-item label="启用 ACME">
+              <el-switch 
+                v-model="acmeEnabled"
+                active-text="开启"
+                inactive-text="关闭"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col v-if="acmeEnabled && localConfig.server.tls.acme" :span="8">
+            <el-form-item label="联系邮箱">
+              <el-input 
+                v-model="localConfig.server.tls.acme.email" 
+                placeholder="admin@example.com"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col v-if="acmeEnabled && localConfig.server.tls.acme" :span="8">
+            <el-form-item label="ACME 服务">
+              <el-select 
+                v-model="localConfig.server.tls.acme.directory_url"
+                style="width: 100%"
+              >
+                <el-option
+                  label="Production"
+                  value="https://acme-v02.api.letsencrypt.org/directory"
+                />
+                <el-option
+                  label="Staging"
+                  value="https://acme-staging-v02.api.letsencrypt.org/directory"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
         
-        <template v-if="acmeEnabled && localConfig.server.tls.acme">
-          <el-form-item label="域名列表">
-            <el-tag
-              v-for="domain in localConfig.server.tls.acme.domains"
-              :key="domain"
-              closable
-              @close="removeDomain(domain)"
-              class="domain-tag"
-            >
-              {{ domain }}
-            </el-tag>
-            <el-input
-              v-if="inputVisible"
-              ref="inputRef"
-              v-model="inputValue"
-              size="small"
-              class="domain-input"
-              @keyup.enter="handleInputConfirm"
-              @blur="handleInputConfirm"
-            />
-            <el-button v-else size="small" @click="showInput">
-              + 添加域名
-            </el-button>
-          </el-form-item>
-          
-          <el-form-item label="联系邮箱">
-            <el-input 
-              v-model="localConfig.server.tls.acme.email" 
-              placeholder="admin@example.com"
-            />
-          </el-form-item>
-          
-          <el-form-item label="ACME 服务地址">
-            <el-select 
-              v-model="localConfig.server.tls.acme.directory_url"
-              style="width: 100%"
-            >
-              <el-option
-                label="Let's Encrypt Production"
-                value="https://acme-v02.api.letsencrypt.org/directory"
-              />
-              <el-option
-                label="Let's Encrypt Staging"
-                value="https://acme-staging-v02.api.letsencrypt.org/directory"
-              />
-            </el-select>
-          </el-form-item>
-        </template>
+        <!-- 域名管理区域 -->
+        <el-row v-if="acmeEnabled && localConfig.server.tls.acme" :gutter="24">
+          <el-col :span="24">
+            <el-form-item label="域名列表">
+              <div class="domain-management">
+                <el-tag
+                  v-for="domain in localConfig.server.tls.acme.domains"
+                  :key="domain"
+                  closable
+                  @close="removeDomain(domain)"
+                  class="domain-tag"
+                >
+                  {{ domain }}
+                </el-tag>
+                <el-input
+                  v-if="inputVisible"
+                  ref="inputRef"
+                  v-model="inputValue"
+                  size="small"
+                  class="domain-input"
+                  @keyup.enter="handleInputConfirm"
+                  @blur="handleInputConfirm"
+                />
+                <el-button v-else size="small" @click="showInput">
+                  + 添加域名
+                </el-button>
+              </div>
+            </el-form-item>
+          </el-col>
+        </el-row>
 
-        <!-- 操作按钮 -->
-        <el-form-item class="form-actions">
-          <el-button 
-            type="primary" 
-            @click="saveConfig"
-            :loading="configStore.loading"
-          >
-            保存配置
-          </el-button>
-          <el-button @click="resetForm">重置</el-button>
-        </el-form-item>
       </el-form>
       
       <div v-else class="loading-placeholder">
         <el-empty description="配置加载中..." />
       </div>
-    </el-card>
-  </div>
+    </ContentCard>
+  </AppPage>
 </template>
 
 <script setup lang="ts">
@@ -126,6 +139,8 @@ import { ref, computed, watch, nextTick } from 'vue'
 import { ElMessage, type FormInstance } from 'element-plus'
 import { useConfigStore } from '../stores/config'
 import type { ProxyConfig } from '../types'
+import AppPage from '../components/layout/AppPage.vue'
+import ContentCard from '../components/layout/ContentCard.vue'
 
 const configStore = useConfigStore()
 const formRef = ref<FormInstance>()
@@ -212,44 +227,38 @@ function resetForm() {
 </script>
 
 <style scoped>
-.tls-config {
-  max-width: 600px;
-}
+/* 使用全局样式和工具类，大幅简化自定义样式 */
 
-.tls-form {
-  max-width: 100%;
+.domain-management {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-small);
 }
 
 .domain-tag {
-  margin-right: 8px;
-  margin-bottom: 8px;
+  margin: 0;
 }
 
 .domain-input {
   width: 120px;
-  vertical-align: top;
 }
 
-.form-actions {
-  margin-top: 32px;
-  padding-top: 24px;
-  border-top: 1px solid #f0f0f0;
-}
 
 .loading-placeholder {
   text-align: center;
-  padding: 60px 0;
+  padding: var(--spacing-section) 0;
 }
 
 :deep(.el-divider__text) {
-  background-color: #ffffff;
-  padding: 0 20px;
+  background-color: var(--bg-color);
+  padding: 0 var(--spacing-large);
 }
 
 :deep(.el-divider__text h3) {
   margin: 0;
-  font-size: 16px;
-  color: #1f2937;
-  font-weight: 600;
+  font-size: var(--font-size-medium);
+  color: var(--text-color-primary);
+  font-weight: var(--font-weight-semibold);
 }
 </style>

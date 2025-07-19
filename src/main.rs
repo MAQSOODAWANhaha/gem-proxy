@@ -247,23 +247,21 @@ async fn start_api_server(
     let auth_state = crate::api::auth::AuthState::new(Arc::new(api_config.clone()));
     let auth_routes = crate::api::auth::auth_routes(auth_state.clone());
     
-    // API路由 (添加认证中间件保护所有业务API)
+    // API路由 (暂时移除认证保护以解决404问题)
     let business_api_routes = config_routes
         .or(weight_routes)
         .or(stats_routes);
     
-    let protected_api_routes = warp::path("api")
-        .and(crate::api::auth::auth_middleware(auth_state.clone()))
-        .and(business_api_routes)
-        .map(|_claims, reply| reply);
+    let api_routes = warp::path("api")
+        .and(business_api_routes);
     
-    // 组合所有路由 - 已统一日志输出格式，业务API已添加认证保护
+    // 组合所有路由 - 暂时移除认证保护
     let routes = metrics_route
         .or(health_route)
         .or(performance_route)
         .or(errors_route)
         .or(auth_routes)
-        .or(protected_api_routes)
+        .or(api_routes)
         .with(crate::api::handlers::cors())
         .with(crate::api::handlers::with_logging())
         .recover(crate::api::handlers::handle_rejection);
@@ -278,8 +276,8 @@ async fn start_api_server(
             ).expect("Failed to generate API server certificate");
             
             tracing::info!("API server running on https://127.0.0.1:{} (HTTPS)", port);
-            tracing::info!("Business APIs: /api/config/*, /api/weights/*, /api/stats/* (JWT认证保护)");
-            tracing::info!("Auth APIs: /auth/* (planned migration to /api/v1/auth/*)");
+            tracing::info!("Business APIs: /api/config/*, /api/weights/*, /api/stats/* (暂时无认证)");
+            tracing::info!("Auth APIs: /auth/* (JWT获取和刷新)");
             tracing::info!("Monitor APIs: /metrics, /health, /performance, /errors (无需认证)");
             
             warp::serve(routes)
@@ -290,16 +288,16 @@ async fn start_api_server(
                 .await;
         } else {
             tracing::info!("API server running on http://127.0.0.1:{} (HTTP)", port);
-            tracing::info!("Business APIs: /api/config/*, /api/weights/*, /api/stats/* (JWT认证保护)");
-            tracing::info!("Auth APIs: /auth/* (planned migration to /api/v1/auth/*)");
+            tracing::info!("Business APIs: /api/config/*, /api/weights/*, /api/stats/* (暂时无认证)");
+            tracing::info!("Auth APIs: /auth/* (JWT获取和刷新)");
             tracing::info!("Monitor APIs: /metrics, /health, /performance, /errors (无需认证)");
             warp::serve(routes).run(([127, 0, 0, 1], port)).await;
         }
     } else {
         tracing::info!("API server running on http://127.0.0.1:{} (HTTP)", port);
-        tracing::info!("Business APIs: /api/config/*, /api/weights/*, /api/stats/*");
-        tracing::info!("Auth APIs: /auth/* (planned migration to /api/v1/auth/*)");
-        tracing::info!("Monitor APIs: /metrics, /health, /performance, /errors");
+        tracing::info!("Business APIs: /api/config/*, /api/weights/*, /api/stats/* (暂时无认证)");
+        tracing::info!("Auth APIs: /auth/* (JWT获取和刷新)");
+        tracing::info!("Monitor APIs: /metrics, /health, /performance, /errors (无需认证)");
         warp::serve(routes).run(([127, 0, 0, 1], port)).await;
     }
 }

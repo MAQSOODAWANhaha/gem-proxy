@@ -1,0 +1,116 @@
+/* 桌面端UI设计标准 - CSS变量系统 */
+/* 基于 Element Plus 设计语言的标准化变量 */
+
+:root {
+  /* 字体系统 - 基于 Element Plus 标准 */
+  --font-size-extra-small: 12px;    /* 辅助信息 */
+  --font-size-small: 13px;          /* 表格内容 */
+  --font-size-base: 14px;           /* 正文内容 (Element Plus 默认) */
+  --font-size-medium: 16px;         /* 卡片标题 */
+  --font-size-large: 18px;          /* 次级标题 */
+  --font-size-extra-large: 20px;    /* 页面主标题 */
+
+  /* 字重系统 */
+  --font-weight-normal: 400;        /* 正文 */
+  --font-weight-medium: 500;        /* 强调 */
+  --font-weight-semibold: 600;      /* 标题 */
+  --font-weight-bold: 700;          /* 重要标题 */
+
+  /* 行高系统 */
+  --line-height-tight: 1.25;       /* 紧凑行高 */
+  --line-height-normal: 1.5;       /* 标准行高 */
+  --line-height-relaxed: 1.75;     /* 宽松行高 */
+
+  /* 间距系统 - 基于 8px 栅格 */
+  --spacing-mini: 4px;              /* 最小间距 */
+  --spacing-small: 8px;             /* 小间距 */
+  --spacing-base: 12px;             /* 基础间距 */
+  --spacing-medium: 16px;           /* 中等间距 */
+  --spacing-large: 20px;            /* 大间距 */
+  --spacing-extra-large: 24px;      /* 超大间距 */
+  --spacing-section: 32px;          /* 区块间距 */
+
+  /* 布局系统 - 桌面端专用 */
+  --container-max-width: 1600px;    /* 页面最大宽度 */
+  --container-padding: 16px;        /* 容器内边距 */
+  --card-spacing: 24px;             /* 卡片间距 */
+  --card-margin-bottom: 32px;       /* 卡片底部间距 */
+  --content-spacing: 16px;          /* 内容间距 */
+  --stat-card-padding: 20px;        /* 统计卡片内边距 */
+  --table-row-height: 56px;         /* 表格行高 */
+  --button-group-gap: 8px;          /* 按钮组间距 */
+
+  /* 圆角系统 - 基于 Element Plus */
+  --border-radius-small: 4px;       /* 小圆角 */
+  --border-radius-base: 6px;        /* 基础圆角 */
+  --border-radius-large: 8px;       /* 大圆角 */
+
+  /* 阴影系统 - 使用 Element Plus 标准 */
+  --box-shadow-light: 0 2px 4px rgba(0, 0, 0, 0.12), 0 0 6px rgba(0, 0, 0, 0.04);
+  --box-shadow-base: 0 2px 4px rgba(0, 0, 0, 0.12), 0 0 6px rgba(0, 0, 0, 0.04);
+  --box-shadow-dark: 0 4px 8px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08);
+
+  /* 色彩系统 - 使用 Element Plus 原生变量 */
+  --color-primary: var(--el-color-primary, #409EFF);
+  --color-success: var(--el-color-success, #67C23A);
+  --color-warning: var(--el-color-warning, #E6A23C);
+  --color-danger: var(--el-color-danger, #F56C6C);
+  --color-info: var(--el-color-info, #909399);
+
+  /* 文本色彩 */
+  --text-color-primary: var(--el-text-color-primary, #303133);
+  --text-color-regular: var(--el-text-color-regular, #606266);
+  --text-color-secondary: var(--el-text-color-secondary, #909399);
+  --text-color-placeholder: var(--el-text-color-placeholder, #A8ABB2);
+  --text-color-disabled: var(--el-text-color-disabled, #C0C4CC);
+
+  /* 边框色彩 */
+  --border-color: var(--el-border-color, #DCDFE6);
+  --border-color-light: var(--el-border-color-light, #E4E7ED);
+  --border-color-lighter: var(--el-border-color-lighter, #EBEEF5);
+  --border-color-extra-light: var(--el-border-color-extra-light, #F2F6FC);
+
+  /* 背景色彩 */
+  --bg-color: var(--el-bg-color, #FFFFFF);
+  --bg-color-page: var(--el-bg-color-page, #F2F3F5);
+  --bg-color-overlay: var(--el-bg-color-overlay, #FFFFFF);
+
+  /* 动画系统 */
+  --transition-duration-fast: 0.1s;
+  --transition-duration-base: 0.2s;
+  --transition-duration-slow: 0.3s;
+  --transition-function: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* z-index 系统 */
+  --z-index-normal: 1;
+  --z-index-top: 1000;
+  --z-index-popper: 2000;
+}
+
+/* 深色模式支持 */
+[data-theme="dark"] {
+  --bg-color: #1d1e1f;
+  --bg-color-page: #0a0a0a;
+  --text-color-primary: #E5EAF3;
+  --text-color-regular: #CFD3DC;
+  --text-color-secondary: #A3A6AD;
+  --border-color: #414243;
+  --border-color-light: #363637;
+  --border-color-lighter: #2b2b2c;
+}
+
+/* 禁用的CSS特性提醒 */
+/*
+❌ 禁用以下CSS特性：
+- clamp() 函数
+- vw, vh, vmin, vmax 单位
+- 复杂的媒体查询
+- CSS Grid 布局
+- 自定义CSS变量覆盖 Element Plus
+
+✅ 推荐使用：
+- 固定px值
+- Element Plus 原生变量
+- el-row/el-col 栅格系统
+- 标准的间距和字体
+*/

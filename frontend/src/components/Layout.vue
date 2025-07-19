@@ -61,6 +61,16 @@
             <el-icon><Refresh /></el-icon>
           </el-button>
 
+          <!-- API配置按钮 -->
+          <el-button 
+            type="text" 
+            size="large"
+            @click="showApiConfig = true"
+            title="API服务器配置"
+          >
+            <el-icon><Setting /></el-icon>
+          </el-button>
+
           <!-- 用户菜单 -->
           <el-dropdown @command="handleUserMenuCommand">
             <el-button type="text" size="large" class="user-menu">
@@ -70,6 +80,10 @@
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
+                <el-dropdown-item command="api-config">
+                  <el-icon><Setting /></el-icon>
+                  API配置
+                </el-dropdown-item>
                 <el-dropdown-item command="logout">
                   <el-icon><SwitchButton /></el-icon>
                   登出
@@ -85,28 +99,36 @@
         <router-view />
       </el-main>
     </el-container>
+
+    <!-- API配置对话框 -->
+    <ApiConfigDialog v-model="showApiConfig" />
   </el-container>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useConfigStore } from '../stores/config'
 import { useAuthStore } from '../stores/auth'
+import ApiConfigDialog from './ApiConfigDialog.vue'
 import { 
   CircleCheckFilled,
   CircleCloseFilled,
   Refresh,
   User,
   ArrowDown,
-  SwitchButton
+  SwitchButton,
+  Setting
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
 const configStore = useConfigStore()
 const authStore = useAuthStore()
+
+// 状态
+const showApiConfig = ref(false)
 
 // 菜单项配置
 const menuItems = [
@@ -193,6 +215,8 @@ async function handleUserMenuCommand(command: string) {
         ElMessage.error('登出失败')
       }
     }
+  } else if (command === 'api-config') {
+    showApiConfig.value = true
   }
 }
 

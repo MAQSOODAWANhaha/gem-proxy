@@ -1,43 +1,46 @@
 <template>
-  <div class="monitoring">
-    <h1>监控指标</h1>
+  <AppPage title="监控指标" description="实时查看系统状态和 Prometheus 指标数据">
+    <template #actions>
+      <el-button 
+        type="primary" 
+        @click="refreshMetrics"
+        :loading="loading"
+      >
+        刷新指标
+      </el-button>
+    </template>
     
-    <!-- 实时状态 -->
-    <el-row :gutter="20" class="status-row">
-      <el-col :span="8">
-        <el-card class="status-card">
-          <el-statistic 
-            title="服务状态" 
-            :value="healthStatus?.status || 'unknown'"
-            :value-style="{ color: healthStatusColor }"
-          />
-        </el-card>
-      </el-col>
-      <el-col :span="8">
-        <el-card class="status-card">
-          <el-statistic 
-            title="最后检查" 
-            :value="lastCheckTime"
-            :value-style="{ fontSize: '16px' }"
-          />
-        </el-card>
-      </el-col>
-      <el-col :span="8">
-        <el-card class="status-card">
-          <el-button 
-            type="primary" 
-            @click="refreshMetrics"
-            :loading="loading"
-            style="width: 100%"
-          >
-            刷新指标
-          </el-button>
-        </el-card>
-      </el-col>
-    </el-row>
+    <!-- 实时状态概览 -->
+    <ContentCard title="服务状态概览" :span="24">
+      <el-row :gutter="24">
+        <StatCard 
+          :span="8"
+          title="服务状态"
+          :value="healthStatus?.status || 'unknown'"
+          :value-style="{ color: healthStatusColor }"
+          :icon="Monitor"
+          icon-color="#409eff"
+        />
+        <StatCard 
+          :span="8"
+          title="最后检查"
+          :value="lastCheckTime"
+          :value-style="{ fontSize: '16px' }"
+          :icon="Clock"
+          icon-color="#67c23a"
+        />
+        <StatCard 
+          :span="8"
+          title="检查项目"
+          :value="healthCheckData.length"
+          :icon="List"
+          icon-color="#e6a23c"
+        />
+      </el-row>
+    </ContentCard>
 
     <!-- 健康检查详情 -->
-    <el-card title="健康检查详情" class="health-card">
+    <ContentCard title="健康检查详情" :span="24">
       <el-table 
         v-if="healthStatus?.checks"
         :data="healthCheckData" 
@@ -56,12 +59,11 @@
       </el-table>
       
       <el-empty v-else description="暂无健康检查数据" />
-    </el-card>
+    </ContentCard>
 
     <!-- Prometheus 指标 -->
-    <el-card title="Prometheus 指标" class="metrics-card">
-      <div class="metrics-header">
-        <span>原始指标数据</span>
+    <ContentCard title="Prometheus 指标" :span="24">
+      <template #actions>
         <el-button 
           size="small" 
           @click="copyMetrics"
@@ -69,7 +71,7 @@
         >
           复制指标
         </el-button>
-      </div>
+      </template>
       
       <el-input
         v-if="metricsData"
@@ -81,10 +83,10 @@
       />
       
       <el-empty v-else description="暂无指标数据" />
-    </el-card>
+    </ContentCard>
 
     <!-- 访问链接 -->
-    <el-card title="监控链接" class="links-card">
+    <ContentCard title="监控链接" :span="24">
       <el-descriptions :column="1" border>
         <el-descriptions-item label="健康检查">
           <el-link 
@@ -105,16 +107,20 @@
           </el-link>
         </el-descriptions-item>
       </el-descriptions>
-    </el-card>
-  </div>
+    </ContentCard>
+  </AppPage>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Monitor, Clock, List } from '@element-plus/icons-vue'
 import { useConfigStore } from '../stores/config'
 import { configApi } from '../api/config'
 import type { HealthStatus } from '../types'
+import AppPage from '../components/layout/AppPage.vue'
+import ContentCard from '../components/layout/ContentCard.vue'
+import StatCard from '../components/layout/StatCard.vue'
 
 const configStore = useConfigStore()
 
@@ -227,43 +233,12 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.monitoring {
-  max-width: 1000px;
-}
-
-.status-row {
-  margin-bottom: 24px;
-}
-
-.status-card {
-  text-align: center;
-}
-
-.health-card,
-.metrics-card,
-.links-card {
-  margin-bottom: 24px;
-}
-
-.metrics-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
+/* 使用全局样式和工具类，大幅简化自定义样式 */
 
 .metrics-textarea {
   font-family: 'Courier New', monospace;
-  font-size: 12px;
+  font-size: var(--font-size-extra-small);
 }
 
-:deep(.el-statistic__content) {
-  font-size: 20px;
-  font-weight: 600;
-}
-
-:deep(.el-card__header) {
-  font-weight: 600;
-  color: #1f2937;
-}
+/* 统计卡片和卡片样式已由组件统一管理 */
 </style>

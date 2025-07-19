@@ -14,12 +14,13 @@
       </el-button>
     </template>
     
-    <!-- 负载均衡概览 -->
-    <ContentCard title="负载均衡概览" :span="24">
-      <el-row :gutter="24">
+    <!-- 第1行：系统状态统计概览 -->
+    <ContentCard title="系统状态概览" :span="24">
+      <el-row :gutter="32">
         <StatCard
           title="API Keys 总数"
           :value="totalApiKeys"
+          :value-style="{ color: 'var(--color-primary)', fontSize: '24px', fontWeight: '600' }"
           :icon="Key"
           icon-color="var(--color-primary)"
           :span="6"
@@ -28,6 +29,7 @@
         <StatCard
           title="活跃 Keys"
           :value="activeApiKeys"
+          :value-style="{ color: 'var(--color-success)', fontSize: '24px', fontWeight: '600' }"
           :icon="CircleCheck"
           icon-color="var(--color-success)"
           :span="6"
@@ -36,293 +38,302 @@
         <StatCard
           title="总权重"
           :value="totalWeight"
-          :icon="TrendCharts"
+          :value-style="{ color: 'var(--color-warning)', fontSize: '24px', fontWeight: '600' }"
+          :icon="ScaleToOriginal"
           icon-color="var(--color-warning)"
           :span="6"
         />
         
         <StatCard
           title="负载均衡评分"
-          :value="loadBalanceScore"
+          :value="loadBalanceScoreText + '/100'"
+          :value-style="{ color: getScoreColor(loadBalanceScore), fontSize: '24px', fontWeight: '600' }"
           :icon="TrendCharts"
-          icon-color="var(--color-danger)"
+          :icon-color="getScoreColor(loadBalanceScore)"
           :span="6"
         />
       </el-row>
     </ContentCard>
 
-      <!-- 主要功能面板 -->
-      <el-row :gutter="20" class="main-panels">
-        <!-- 权重管理面板 -->
-        <el-col :span="12">
-          <el-card class="panel-card">
-            <template #header>
-              <div class="card-header">
-                <h3>权重配置管理</h3>
-                <el-button 
-                  type="primary" 
-                  size="small" 
-                  @click="refreshWeights"
-                  :loading="weightsLoading"
-                >
-                  <el-icon><Refresh /></el-icon>
-                  刷新
-                </el-button>
-              </div>
-            </template>
+    <!-- 第2行：权重配置管理 -->
+    <ContentCard 
+      title="权重配置管理" 
+      description="手动调整API密钥权重分配"
+      :span="24"
+    >
+          <template #actions>
+            <el-button 
+              type="primary" 
+              size="small" 
+              @click="refreshWeights"
+              :loading="weightsLoading"
+            >
+              <el-icon><Refresh /></el-icon>
+              刷新
+            </el-button>
+          </template>
 
-            <div class="weight-management">
-              <div v-for="apiKey in apiKeys" :key="apiKey.id" class="weight-item">
-                <div class="weight-info">
-                  <div class="key-name">{{ apiKey.id }}</div>
-                  <div class="key-status">
-                    <el-tag :type="apiKey.enabled ? 'success' : 'danger'" size="small">
-                      {{ apiKey.enabled ? '启用' : '禁用' }}
-                    </el-tag>
-                  </div>
-                </div>
-                <div class="weight-control">
-                  <el-slider
-                    v-model="apiKey.weight"
-                    :min="0"
-                    :max="1000"
-                    :step="10"
-                    :show-tooltip="true"
-                    @change="onWeightChange(apiKey)"
-                    class="weight-slider"
-                  />
-                  <div class="weight-value">{{ apiKey.weight }}</div>
+          <div class="weight-management">
+            <div v-for="apiKey in apiKeys" :key="apiKey.id" class="weight-item">
+              <div class="weight-info">
+                <div class="key-name">{{ apiKey.id }}</div>
+                <div class="key-status">
+                  <el-tag :type="apiKey.enabled ? 'success' : 'danger'" size="small">
+                    {{ apiKey.enabled ? '启用' : '禁用' }}
+                  </el-tag>
                 </div>
               </div>
-            </div>
-
-            <div class="panel-actions">
-              <el-button type="success" @click="saveWeights" :loading="savingWeights">
-                <el-icon><Check /></el-icon>
-                保存配置
-              </el-button>
-              <el-button @click="createSnapshot">
-                <el-icon><Camera /></el-icon>
-                创建快照
-              </el-button>
-              <el-button @click="openBatchEdit">
-                <el-icon><Edit /></el-icon>
-                批量编辑
-              </el-button>
-            </div>
-          </el-card>
-        </el-col>
-
-        <!-- 智能优化面板 -->
-        <el-col :span="12">
-          <el-card class="panel-card">
-            <template #header>
-              <div class="card-header">
-                <h3>智能优化建议</h3>
-                <el-button 
-                  type="primary" 
-                  size="small" 
-                  @click="generateOptimization"
-                  :loading="optimizationLoading"
-                >
-                  <el-icon><MagicStick /></el-icon>
-                  生成建议
-                </el-button>
-              </div>
-            </template>
-
-            <div class="optimization-panel">
-              <div class="strategy-selector">
-                <el-select v-model="selectedStrategy" placeholder="选择优化策略" style="width: 100%">
-                  <el-option
-                    v-for="strategy in optimizationStrategies"
-                    :key="strategy.value"
-                    :label="strategy.label"
-                    :value="strategy.value"
-                  />
-                </el-select>
-              </div>
-
-              <div v-if="optimizationResult" class="optimization-result">
-                <div class="result-summary">
-                  <el-descriptions :column="2" size="small" border>
-                    <el-descriptions-item label="策略">{{ getStrategyLabel(optimizationResult.strategy) }}</el-descriptions-item>
-                    <el-descriptions-item label="置信度">{{ (optimizationResult.confidence_score * 100).toFixed(1) }}%</el-descriptions-item>
-                    <el-descriptions-item label="预期改进">{{ optimizationResult.overall_improvement.toFixed(1) }}%</el-descriptions-item>
-                    <el-descriptions-item label="建议数量">{{ optimizationResult.recommendations.length }}</el-descriptions-item>
-                  </el-descriptions>
-                </div>
-
-                <div class="recommendations">
-                  <div v-for="rec in optimizationResult.recommendations" :key="rec.key_id" class="recommendation-item">
-                    <div class="rec-header">
-                      <span class="key-id">{{ rec.key_id }}</span>
-                      <el-tag :type="getRiskTagType(rec.risk_level)" size="small">
-                        {{ rec.risk_level }}
-                      </el-tag>
-                    </div>
-                    <div class="rec-changes">
-                      <span class="weight-change">
-                        {{ rec.current_weight }} → {{ rec.recommended_weight }}
-                      </span>
-                      <span class="improvement">+{{ rec.expected_improvement.toFixed(1) }}%</span>
-                    </div>
-                    <div class="rec-reason">{{ rec.reason }}</div>
-                  </div>
-                </div>
-
-                <div class="optimization-actions">
-                  <el-button type="primary" @click="applyOptimization">
-                    <el-icon><Check /></el-icon>
-                    应用建议
-                  </el-button>
-                  <el-button @click="previewOptimization">
-                    <el-icon><View /></el-icon>
-                    预览效果
-                  </el-button>
-                </div>
-              </div>
-
-              <div v-else class="no-optimization">
-                <el-empty description="暂无优化建议，请选择策略并点击生成建议" />
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-      </el-row>
-
-      <!-- 监控与分析 -->
-      <el-row :gutter="20" class="monitoring-section">
-        <el-col :span="16">
-          <el-card class="panel-card">
-            <template #header>
-              <div class="card-header">
-                <h3>权重分布可视化</h3>
-                <el-button-group size="small">
-                  <el-button @click="chartType = 'pie'" :type="chartType === 'pie' ? 'primary' : ''">饼图</el-button>
-                  <el-button @click="chartType = 'bar'" :type="chartType === 'bar' ? 'primary' : ''">柱状图</el-button>
-                  <el-button @click="chartType = 'radar'" :type="chartType === 'radar' ? 'primary' : ''">雷达图</el-button>
-                </el-button-group>
-              </div>
-            </template>
-
-            <div class="chart-container">
-              <div ref="chartContainer" style="width: 100%; height: 400px;"></div>
-            </div>
-          </el-card>
-        </el-col>
-
-        <el-col :span="8">
-          <el-card class="panel-card">
-            <template #header>
-              <h3>实时负载状态</h3>
-            </template>
-
-            <div class="load-status">
-              <div v-for="apiKey in apiKeys" :key="apiKey.id" class="load-item">
-                <div class="load-header">
-                  <span class="key-name">{{ apiKey.id }}</span>
-                  <span class="load-percentage">{{ getLoadPercentage(apiKey) }}%</span>
-                </div>
-                <el-progress 
-                  :percentage="getLoadPercentage(apiKey)" 
-                  :color="getProgressColor(getLoadPercentage(apiKey))"
-                  :stroke-width="8"
+              <div class="weight-control">
+                <el-slider
+                  v-model="apiKey.weight"
+                  :min="0"
+                  :max="1000"
+                  :step="10"
+                  :show-tooltip="true"
+                  @change="onWeightChange(apiKey)"
+                  class="weight-slider"
                 />
-                <div class="load-stats">
-                  <span>权重: {{ apiKey.weight }}</span>
-                  <span>请求数: {{ getRequestCount(apiKey) }}</span>
-                </div>
+                <div class="weight-value">{{ apiKey.weight }}</div>
               </div>
             </div>
-          </el-card>
-        </el-col>
-      </el-row>
+          </div>
 
-      <!-- 审计与历史 -->
-      <el-row :gutter="20" class="audit-section">
-        <el-col :span="24">
-          <el-card class="panel-card">
-            <template #header>
-              <div class="card-header">
-                <h3>权重变更审计</h3>
-                <div class="header-actions">
-                  <el-button size="small" @click="openAuditQuery">
-                    <el-icon><Search /></el-icon>
-                    查询
-                  </el-button>
-                  <el-button size="small" @click="exportAuditRecords">
-                    <el-icon><Download /></el-icon>
-                    导出
-                  </el-button>
-                  <el-button size="small" @click="showSnapshots">
-                    <el-icon><FolderOpened /></el-icon>
-                    快照管理
-                  </el-button>
-                </div>
+          <div class="panel-actions">
+            <el-button type="success" @click="saveWeights" :loading="savingWeights">
+              <el-icon><Check /></el-icon>
+              保存配置
+            </el-button>
+            <el-button @click="createSnapshot">
+              <el-icon><Camera /></el-icon>
+              创建快照
+            </el-button>
+            <el-button @click="openBatchEdit">
+              <el-icon><Edit /></el-icon>
+              批量编辑
+            </el-button>
+          </div>
+    </ContentCard>
+
+    <!-- 第3行：实时负载状态监控 -->
+    <ContentCard 
+      title="实时负载状态" 
+      description="监控API密钥的实时使用情况"
+      :span="24"
+    >
+      <div class="load-status">
+        <el-row :gutter="24">
+          <el-col v-for="apiKey in apiKeys" :key="apiKey.id" :span="12" class="load-item-col">
+            <div class="load-item">
+              <div class="load-header">
+                <span class="key-name">{{ apiKey.id }}</span>
+                <span class="load-percentage">{{ getLoadPercentage(apiKey) }}%</span>
               </div>
-            </template>
-
-            <div class="audit-content">
-              <el-table
-                :data="auditRecords"
-                v-loading="auditLoading"
-                stripe
-                style="width: 100%"
-                :default-sort="{ prop: 'timestamp', order: 'descending' }"
-              >
-                <el-table-column prop="timestamp" label="时间" width="180">
-                  <template #default="{ row }">
-                    {{ formatTimestamp(row.timestamp) }}
-                  </template>
-                </el-table-column>
-                <el-table-column prop="operator" label="操作者" width="100" />
-                <el-table-column prop="operation_type" label="操作类型" width="120">
-                  <template #default="{ row }">
-                    <el-tag :type="getOperationTagType(row.operation_type)" size="small">
-                      {{ formatOperationType(row.operation_type) }}
-                    </el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="target_key_id" label="目标Key" width="150" />
-                <el-table-column label="权重变更" width="120">
-                  <template #default="{ row }">
-                    <span class="weight-change">
-                      {{ row.old_weight }} → {{ row.new_weight }}
-                    </span>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="reason" label="原因" show-overflow-tooltip />
-                <el-table-column prop="source" label="来源" width="100">
-                  <template #default="{ row }">
-                    <el-tag type="info" size="small">
-                      {{ formatSource(row.source) }}
-                    </el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column label="操作" width="100">
-                  <template #default="{ row }">
-                    <el-button type="text" size="small" @click="showAuditDetail(row)">
-                      详情
-                    </el-button>
-                  </template>
-                </el-table-column>
-              </el-table>
-
-              <el-pagination
-                v-model:current-page="auditPagination.page"
-                v-model:page-size="auditPagination.size"
-                :page-sizes="[10, 20, 50, 100]"
-                :total="auditPagination.total"
-                layout="total, sizes, prev, pager, next, jumper"
-                @size-change="handleAuditSizeChange"
-                @current-change="handleAuditPageChange"
-                class="pagination"
+              <el-progress 
+                :percentage="getLoadPercentage(apiKey)" 
+                :color="getProgressColor(getLoadPercentage(apiKey))"
+                :stroke-width="8"
               />
+              <div class="load-stats">
+                <span>权重: {{ apiKey.weight }}</span>
+                <span>请求数: {{ getRequestCount(apiKey) }}</span>
+              </div>
             </div>
-          </el-card>
-        </el-col>
-      </el-row>
+          </el-col>
+        </el-row>
+      </div>
+    </ContentCard>
+
+    <!-- 第4行：可视化分析 + 智能优化建议 -->
+    <el-row :gutter="32">
+      <!-- 左侧：权重分布可视化 -->
+      <ContentCard 
+        title="权重分布可视化" 
+        description="多维度权重分布分析图表"
+        :span="12"
+      >
+          <template #actions>
+            <el-button-group size="small">
+              <el-button @click="chartType = 'pie'" :type="chartType === 'pie' ? 'primary' : ''">饼图</el-button>
+              <el-button @click="chartType = 'bar'" :type="chartType === 'bar' ? 'primary' : ''">柱状图</el-button>
+              <el-button @click="chartType = 'radar'" :type="chartType === 'radar' ? 'primary' : ''">雷达图</el-button>
+            </el-button-group>
+          </template>
+
+          <div class="chart-container">
+            <div ref="chartContainer" style="width: 100%; height: 400px;"></div>
+          </div>
+        </ContentCard>
+
+      <!-- 右侧：智能优化建议 -->
+      <ContentCard 
+        title="智能优化建议" 
+        description="基于性能数据的智能权重优化建议"
+        :span="12"
+      >
+          <template #actions>
+            <el-button 
+              type="primary" 
+              size="small" 
+              @click="generateOptimization"
+              :loading="optimizationLoading"
+            >
+              <el-icon><MagicStick /></el-icon>
+              生成建议
+            </el-button>
+          </template>
+
+          <div class="optimization-panel">
+            <div class="strategy-selector">
+              <el-select v-model="selectedStrategy" placeholder="选择优化策略" style="width: 100%">
+                <el-option
+                  v-for="strategy in optimizationStrategies"
+                  :key="strategy.value"
+                  :label="strategy.label"
+                  :value="strategy.value"
+                />
+              </el-select>
+            </div>
+
+            <div v-if="optimizationResult" class="optimization-result">
+              <div class="result-summary">
+                <div class="summary-grid">
+                  <div class="summary-item">
+                    <span class="summary-label">策略</span>
+                    <span class="summary-value">{{ getStrategyLabel(optimizationResult.strategy) }}</span>
+                  </div>
+                  <div class="summary-item">
+                    <span class="summary-label">置信度</span>
+                    <span class="summary-value">{{ (optimizationResult.confidence_score * 100).toFixed(1) }}%</span>
+                  </div>
+                  <div class="summary-item">
+                    <span class="summary-label">预期改进</span>
+                    <span class="summary-value">{{ optimizationResult.overall_improvement.toFixed(1) }}%</span>
+                  </div>
+                  <div class="summary-item">
+                    <span class="summary-label">建议数量</span>
+                    <span class="summary-value">{{ optimizationResult.recommendations.length }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="recommendations">
+                <div v-for="rec in optimizationResult.recommendations" :key="rec.key_id" class="recommendation-item">
+                  <div class="rec-header">
+                    <span class="key-id">{{ rec.key_id }}</span>
+                    <el-tag :type="getRiskTagType(rec.risk_level)" size="small">
+                      {{ rec.risk_level }}
+                    </el-tag>
+                  </div>
+                  <div class="rec-changes">
+                    <span class="weight-change">
+                      {{ rec.current_weight }} → {{ rec.recommended_weight }}
+                    </span>
+                    <span class="improvement">+{{ rec.expected_improvement.toFixed(1) }}%</span>
+                  </div>
+                  <div class="rec-reason">{{ rec.reason }}</div>
+                </div>
+              </div>
+
+              <div class="optimization-actions">
+                <el-button type="primary" @click="applyOptimization">
+                  <el-icon><Check /></el-icon>
+                  应用建议
+                </el-button>
+                <el-button @click="previewOptimization">
+                  <el-icon><View /></el-icon>
+                  预览效果
+                </el-button>
+              </div>
+            </div>
+
+            <div v-else class="no-optimization">
+              <el-empty description="暂无优化建议，请选择策略并点击生成建议" />
+            </div>
+          </div>
+      </ContentCard>
+    </el-row>
+
+    <!-- 第5行：权重变更审计 -->
+    <ContentCard 
+      title="权重变更审计" 
+      description="完整的权重配置变更历史记录与追踪"
+      :span="24"
+    >
+          <template #actions>
+            <div class="header-actions">
+              <el-button size="small" @click="openAuditQuery">
+                <el-icon><Search /></el-icon>
+                查询
+              </el-button>
+              <el-button size="small" @click="exportAuditRecords">
+                <el-icon><Download /></el-icon>
+                导出
+              </el-button>
+              <el-button size="small" @click="showSnapshots">
+                <el-icon><FolderOpened /></el-icon>
+                快照管理
+              </el-button>
+            </div>
+          </template>
+
+          <div class="audit-content">
+            <el-table
+              :data="auditRecords"
+              v-loading="auditLoading"
+              stripe
+              style="width: 100%"
+              :default-sort="{ prop: 'timestamp', order: 'descending' }"
+            >
+              <el-table-column prop="timestamp" label="时间" width="180">
+                <template #default="{ row }">
+                  {{ formatTimestamp(row.timestamp) }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="operator" label="操作者" width="100" />
+              <el-table-column prop="operation_type" label="操作类型" width="120">
+                <template #default="{ row }">
+                  <el-tag :type="getOperationTagType(row.operation_type)" size="small">
+                    {{ formatOperationType(row.operation_type) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="target_key_id" label="目标Key" width="150" />
+              <el-table-column label="权重变更" width="120">
+                <template #default="{ row }">
+                  <span class="weight-change">
+                    {{ row.old_weight }} → {{ row.new_weight }}
+                  </span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="reason" label="原因" show-overflow-tooltip />
+              <el-table-column prop="source" label="来源" width="100">
+                <template #default="{ row }">
+                  <el-tag type="info" size="small">
+                    {{ formatSource(row.source) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="100">
+                <template #default="{ row }">
+                  <el-button type="text" size="small" @click="showAuditDetail(row)">
+                    详情
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+
+            <el-pagination
+              v-model:current-page="auditPagination.page"
+              v-model:page-size="auditPagination.size"
+              :page-sizes="[10, 20, 50, 100]"
+              :total="auditPagination.total"
+              layout="total, sizes, prev, pager, next, jumper"
+              @size-change="handleAuditSizeChange"
+              @current-change="handleAuditPageChange"
+              class="pagination"
+            />
+          </div>
+    </ContentCard>
 
     <!-- 批量编辑对话框 -->
     <el-dialog
@@ -418,7 +429,7 @@ import AppPage from '../components/layout/AppPage.vue'
 import ContentCard from '../components/layout/ContentCard.vue'
 import StatCard from '../components/layout/StatCard.vue'
 import {
-  Key, CircleCheck, TrendCharts, Refresh, Check, Camera, Edit,
+  Key, CircleCheck, TrendCharts, ScaleToOriginal, Refresh, Check, Camera, Edit,
   MagicStick, View, Search, Download, FolderOpened, Plus
 } from '@element-plus/icons-vue'
 import type {
@@ -436,8 +447,17 @@ const loadBalanceScore = computed(() => {
   const weights = apiKeys.value.map(key => key.weight)
   const mean = weights.reduce((sum, w) => sum + w, 0) / weights.length
   const variance = weights.reduce((sum, w) => sum + Math.pow(w - mean, 2), 0) / weights.length
-  return Math.max(0, 100 - variance / 10).toFixed(0)
+  return Math.max(0, 100 - variance / 10)
 })
+
+const loadBalanceScoreText = computed(() => loadBalanceScore.value.toFixed(0))
+
+// 根据评分获取颜色
+const getScoreColor = (score: number) => {
+  if (score >= 80) return 'var(--color-success)'
+  if (score >= 60) return 'var(--color-warning)'
+  return 'var(--color-danger)'
+}
 
 // 加载状态
 const weightsLoading = ref(false)
@@ -908,38 +928,29 @@ watch(chartType, () => {
 </script>
 
 <style scoped>
-.load-balancing {
-  padding: var(--spacing-large);
-}
-
-.page-container {
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
-/* 统计卡片样式由 StatCard 组件处理，使用设计变量 */
-
-.main-panels {
+/* 页面整体布局 */
+.overview-stats {
   margin-bottom: var(--spacing-extra-large);
 }
 
-.panel-card {
-  border-radius: var(--border-radius-large);
-  min-height: 500px;
+.config-monitoring-section {
+  margin-bottom: var(--spacing-extra-large);
 }
 
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.analysis-optimization-section {
+  margin-bottom: var(--spacing-extra-large);
 }
 
-.card-header h3 {
-  margin: 0;
-  color: var(--text-color-primary);
-  font-size: var(--font-size-medium);
-  font-weight: var(--font-weight-semibold);
+.audit-section {
+  margin-bottom: var(--spacing-extra-large);
 }
+
+/* 统计卡片网格 */
+.overview-stats .el-col {
+  margin-bottom: var(--spacing-medium);
+}
+
+/* 权重配置管理区域 */
 
 .weight-management {
   margin-bottom: var(--spacing-large);
@@ -1004,6 +1015,34 @@ watch(chartType, () => {
   margin-bottom: var(--spacing-large);
 }
 
+.summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-medium);
+  padding: var(--spacing-medium);
+  background-color: var(--bg-color-overlay);
+  border-radius: var(--border-radius-base);
+  border: 1px solid var(--border-color-lighter);
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-mini);
+}
+
+.summary-label {
+  font-size: var(--font-size-extra-small);
+  color: var(--text-color-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+.summary-value {
+  font-size: var(--font-size-small);
+  color: var(--text-color-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
 .recommendations {
   margin-bottom: var(--spacing-large);
   max-height: 300px;
@@ -1059,9 +1098,7 @@ watch(chartType, () => {
   height: 300px;
 }
 
-.monitoring-section {
-  margin-bottom: var(--spacing-large);
-}
+/* 可视化图表容器 */
 
 .chart-container {
   padding: var(--spacing-large) 0;
@@ -1090,22 +1127,25 @@ watch(chartType, () => {
   margin-top: var(--spacing-mini);
 }
 
-.audit-section {
-  margin-bottom: var(--spacing-large);
+/* 审计表格区域 */
+.audit-content {
+  padding: 0;
+}
+
+.audit-content .el-table {
+  border-radius: var(--border-radius-base);
 }
 
 .header-actions {
   display: flex;
   gap: var(--spacing-small);
-}
-
-.audit-content {
-  padding: var(--spacing-small) 0;
+  align-items: center;
 }
 
 .pagination {
   margin-top: var(--spacing-large);
-  text-align: center;
+  display: flex;
+  justify-content: center;
 }
 
 .batch-edit-content {
@@ -1126,17 +1166,58 @@ watch(chartType, () => {
   text-align: right;
 }
 
+/* 响应式布局优化 */
 @media (max-width: 1200px) {
-  .stats-cards .el-col {
+  .overview-stats .el-col {
     margin-bottom: var(--spacing-large);
   }
   
-  .main-panels .el-col {
+  .config-monitoring-section .el-col,
+  .analysis-optimization-section .el-col {
     margin-bottom: var(--spacing-large);
   }
   
-  .monitoring-section .el-col {
-    margin-bottom: var(--spacing-large);
+  .overview-stats .el-col {
+    flex: 0 0 50%;
+    max-width: 50%;
+  }
+}
+
+@media (max-width: 768px) {
+  .overview-stats .el-col {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+  
+  .config-monitoring-section .el-col,
+  .analysis-optimization-section .el-col {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+  
+  .header-actions {
+    flex-direction: column;
+    gap: var(--spacing-mini);
+  }
+  
+  .summary-grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-small);
+    padding: var(--spacing-small);
+  }
+  
+  .weight-info {
+    flex: 0 0 auto;
+    margin-bottom: var(--spacing-small);
+  }
+  
+  .weight-control {
+    margin-left: 0;
+  }
+  
+  .weight-item {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 </style>

@@ -1,8 +1,24 @@
 <template>
-  <div class="proxy-config">
-    <h1>代理配置</h1>
+  <AppPage title="代理配置" description="管理代理服务器的各项配置参数">
+    <template #actions>
+      <el-button 
+        type="primary" 
+        @click="saveConfig"
+        :loading="configStore.loading"
+      >
+        保存配置
+      </el-button>
+      <el-button @click="resetForm">重置</el-button>
+      <el-button 
+        type="info" 
+        @click="loadConfig"
+        :loading="configStore.loading"
+      >
+        重新加载
+      </el-button>
+    </template>
     
-    <el-card v-loading="configStore.loading">
+    <ContentCard title="配置管理" :loading="configStore.loading" :span="24">
       <el-form 
         v-if="localConfig"
         ref="formRef"
@@ -12,9 +28,8 @@
         class="config-form"
       >
         <!-- 服务器配置 -->
-        <el-divider content-position="left">
-          <h3>服务器配置</h3>
-        </el-divider>
+        <div class="form-section">
+          <h3 class="section-title">服务器配置</h3>
         
         <el-row :gutter="20">
           <el-col :span="12">
@@ -60,10 +75,11 @@
           </el-col>
         </el-row>
 
+        </div>
+        
         <!-- Gemini 配置 -->
-        <el-divider content-position="left">
-          <h3>Gemini API 配置</h3>
-        </el-divider>
+        <div class="form-section">
+          <h3 class="section-title">Gemini API 配置</h3>
         
         <el-row :gutter="20">
           <el-col :span="16">
@@ -86,10 +102,11 @@
           </el-col>
         </el-row>
 
+        </div>
+        
         <!-- 认证配置 -->
-        <el-divider content-position="left">
-          <h3>认证配置</h3>
-        </el-divider>
+        <div class="form-section">
+          <h3 class="section-title">认证配置</h3>
         
         <el-form-item label="启用认证" prop="auth.enabled">
           <el-switch v-model="localConfig.auth.enabled" />
@@ -116,10 +133,11 @@
           </el-form-item>
         </template>
 
+        </div>
+        
         <!-- 监控配置 -->
-        <el-divider content-position="left">
-          <h3>监控配置</h3>
-        </el-divider>
+        <div class="form-section">
+          <h3 class="section-title">监控配置</h3>
         
         <el-form-item label="启用监控" prop="metrics.enabled">
           <el-switch v-model="localConfig.metrics.enabled" />
@@ -139,10 +157,11 @@
           <span class="form-help">Prometheus 指标端口</span>
         </el-form-item>
 
+        </div>
+        
         <!-- TLS 配置 -->
-        <el-divider content-position="left">
-          <h3>TLS 配置</h3>
-        </el-divider>
+        <div class="form-section">
+          <h3 class="section-title">TLS 配置</h3>
         
         <el-form-item label="启用 TLS" prop="server.tls.enabled">
           <el-switch v-model="localConfig.server.tls.enabled" />
@@ -168,32 +187,15 @@
             </el-col>
           </el-row>
         </template>
+        </div>
 
-        <!-- 操作按钮 -->
-        <el-form-item class="form-actions">
-          <el-button 
-            type="primary" 
-            @click="saveConfig"
-            :loading="configStore.loading"
-          >
-            保存配置
-          </el-button>
-          <el-button @click="resetForm">重置</el-button>
-          <el-button 
-            type="info" 
-            @click="loadConfig"
-            :loading="configStore.loading"
-          >
-            重新加载
-          </el-button>
-        </el-form-item>
       </el-form>
       
-      <div v-else class="loading-placeholder">
+      <div v-else class="empty-state">
         <el-empty description="配置加载中..." />
       </div>
-    </el-card>
-  </div>
+    </ContentCard>
+  </AppPage>
 </template>
 
 <script setup lang="ts">
@@ -201,6 +203,8 @@ import { ref, watch, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import { useConfigStore } from '../stores/config'
 import type { ProxyConfig } from '../types'
+import AppPage from '../components/layout/AppPage.vue'
+import ContentCard from '../components/layout/ContentCard.vue'
 
 const configStore = useConfigStore()
 const formRef = ref<FormInstance>()
@@ -316,44 +320,24 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.proxy-config {
-  max-width: 800px;
+/* 使用全局样式和工具类，大幅简化自定义样式 */
+
+.form-section {
+  margin-bottom: var(--spacing-extra-large);
 }
 
-.config-form {
-  max-width: 100%;
+.section-title {
+  font-size: var(--font-size-medium);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-medium) 0;
+  padding-bottom: var(--spacing-small);
+  border-bottom: 1px solid var(--color-border-light);
 }
 
 .form-help {
-  margin-left: 8px;
-  font-size: 12px;
-  color: #6b7280;
-}
-
-.form-actions {
-  margin-top: 32px;
-  padding-top: 24px;
-  border-top: 1px solid #f0f0f0;
-}
-
-.loading-placeholder {
-  text-align: center;
-  padding: 60px 0;
-}
-
-:deep(.el-divider__text) {
-  background-color: #ffffff;
-  padding: 0 20px;
-}
-
-:deep(.el-divider__text h3) {
-  margin: 0;
-  font-size: 16px;
-  color: #1f2937;
-  font-weight: 600;
-}
-
-.el-form-item {
-  margin-bottom: 20px;
+  margin-left: var(--spacing-small);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
 }
 </style>
