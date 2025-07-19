@@ -9,18 +9,20 @@
     
     <!-- 权重状态概览 -->
     <ContentCard title="权重状态概览" :span="24">
-      <el-row :gutter="24">
+      <el-row :gutter="32">
         <StatCard 
           :span="6"
           title="总权重"
           :value="weightStats.total_weight || 0"
+          :value-style="{ color: '#409eff' }"
           :icon="ScaleToOriginal"
           icon-color="#409eff"
         />
         <StatCard 
           :span="6"
-          title="活跃权重"
+          title="活跃密钥"
           :value="weightStats.active_keys_count || 0"
+          :value-style="{ color: '#67c23a' }"
           :icon="Connection"
           icon-color="#67c23a"
         />
@@ -28,6 +30,7 @@
           :span="6"
           title="均衡度"
           :value="`${Math.round(weightStats.load_balance_effectiveness || 0)}%`"
+          :value-style="{ color: '#e6a23c' }"
           :icon="TrendCharts"
           icon-color="#e6a23c"
         />
@@ -35,6 +38,7 @@
           :span="6"
           title="权重状态"
           :value="weightHealthText"
+          :value-style="{ color: weightHealthColor }"
           :icon="isWeightHealthy ? CircleCheckFilled : WarningFilled"
           :icon-color="weightHealthColor"
         />
@@ -63,11 +67,12 @@
     
     <!-- 系统状态统计 -->
     <ContentCard title="系统状态统计" :span="24">
-      <el-row :gutter="24">
+      <el-row :gutter="32">
         <StatCard 
           :span="6"
           title="API 密钥"
           :value="apiKeysCount"
+          :value-style="{ color: '#1890ff' }"
           :icon="Key"
           icon-color="#1890ff"
         />
@@ -75,6 +80,7 @@
           :span="6"
           title="活跃密钥"
           :value="activeKeysCount"
+          :value-style="{ color: '#52c41a' }"
           :icon="CircleCheckFilled"
           icon-color="#52c41a"
         />
@@ -82,6 +88,7 @@
           :span="6"
           title="服务端口"
           :value="serverPort"
+          :value-style="{ color: '#722ed1' }"
           :icon="Monitor"
           icon-color="#722ed1"
         />
@@ -89,6 +96,7 @@
           :span="6"
           title="服务状态"
           :value="healthStatusText"
+          :value-style="{ color: healthStatusColor }"
           :icon="isHealthy ? CircleCheckFilled : CircleCloseFilled"
           :icon-color="healthStatusColor"
         />
@@ -224,7 +232,7 @@ const weightHealthText = computed(() => {
   if (effectiveness >= 90) return '优秀'
   if (effectiveness >= 70) return '良好'
   if (effectiveness >= 50) return '一般'
-  return '需优化'
+  return '待优化'
 })
 
 const weightHealthColor = computed(() => {

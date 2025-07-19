@@ -20,7 +20,7 @@
         <StatCard
           title="API Keys 总数"
           :value="totalApiKeys"
-          :value-style="{ color: 'var(--color-primary)', fontSize: '24px', fontWeight: '600' }"
+          :value-style="{ color: 'var(--color-primary)' }"
           :icon="Key"
           icon-color="var(--color-primary)"
           :span="6"
@@ -29,7 +29,7 @@
         <StatCard
           title="活跃 Keys"
           :value="activeApiKeys"
-          :value-style="{ color: 'var(--color-success)', fontSize: '24px', fontWeight: '600' }"
+          :value-style="{ color: 'var(--color-success)' }"
           :icon="CircleCheck"
           icon-color="var(--color-success)"
           :span="6"
@@ -38,7 +38,7 @@
         <StatCard
           title="总权重"
           :value="totalWeight"
-          :value-style="{ color: 'var(--color-warning)', fontSize: '24px', fontWeight: '600' }"
+          :value-style="{ color: 'var(--color-warning)' }"
           :icon="ScaleToOriginal"
           icon-color="var(--color-warning)"
           :span="6"
@@ -47,7 +47,7 @@
         <StatCard
           title="负载均衡评分"
           :value="loadBalanceScoreText + '/100'"
-          :value-style="{ color: getScoreColor(loadBalanceScore), fontSize: '24px', fontWeight: '600' }"
+          :value-style="{ color: getScoreColor(loadBalanceScore) }"
           :icon="TrendCharts"
           :icon-color="getScoreColor(loadBalanceScore)"
           :span="6"
@@ -114,144 +114,217 @@
           </div>
     </ContentCard>
 
-    <!-- 第3行：实时负载状态监控 -->
-    <ContentCard 
-      title="实时负载状态" 
-      description="监控API密钥的实时使用情况"
-      :span="24"
-    >
-      <div class="load-status">
-        <el-row :gutter="24">
-          <el-col v-for="apiKey in apiKeys" :key="apiKey.id" :span="12" class="load-item-col">
-            <div class="load-item">
-              <div class="load-header">
-                <span class="key-name">{{ apiKey.id }}</span>
-                <span class="load-percentage">{{ getLoadPercentage(apiKey) }}%</span>
+    <!-- 权重分析模块 - 符合UI设计标准的Element Plus原生布局 -->
+    <el-row :gutter="24" class="weight-analysis-row">
+      <!-- 左侧：权重分布图表 -->
+      <el-col :span="12">
+        <el-card class="chart-card">
+          <template #header>
+            <div class="card-header">
+              <div class="header-main">
+                <span class="card-title">权重分布图表</span>
+                <p class="page-description">多维度权重分布分析</p>
               </div>
-              <el-progress 
-                :percentage="getLoadPercentage(apiKey)" 
-                :color="getProgressColor(getLoadPercentage(apiKey))"
-                :stroke-width="8"
-              />
-              <div class="load-stats">
-                <span>权重: {{ apiKey.weight }}</span>
-                <span>请求数: {{ getRequestCount(apiKey) }}</span>
+              <div class="card-actions">
+                <el-button-group size="small">
+                  <el-button @click="chartType = 'pie'" :type="chartType === 'pie' ? 'primary' : ''">饼图</el-button>
+                  <el-button @click="chartType = 'bar'" :type="chartType === 'bar' ? 'primary' : ''">柱状图</el-button>
+                  <el-button @click="chartType = 'radar'" :type="chartType === 'radar' ? 'primary' : ''">雷达图</el-button>
+                </el-button-group>
               </div>
             </div>
-          </el-col>
-        </el-row>
-      </div>
+          </template>
+          
+          <div ref="chartContainer" class="chart-container">
+          </div>
+        </el-card>
+      </el-col>
+
+      <!-- 右侧：权重趋势分析 -->
+      <el-col :span="12">
+        <el-card class="chart-card">
+          <template #header>
+            <div class="card-header">
+              <div class="header-main">
+                <span class="card-title">权重趋势分析</span>
+                <p class="page-description">权重变化趋势与稳定性分析</p>
+              </div>
+              <div class="card-actions">
+                <el-button-group size="small">
+                  <el-button @click="trendTimeRange = '1h'" :type="trendTimeRange === '1h' ? 'primary' : ''">1小时</el-button>
+                  <el-button @click="trendTimeRange = '6h'" :type="trendTimeRange === '6h' ? 'primary' : ''">6小时</el-button>
+                  <el-button @click="trendTimeRange = '24h'" :type="trendTimeRange === '24h' ? 'primary' : ''">24小时</el-button>
+                </el-button-group>
+              </div>
+            </div>
+          </template>
+          
+          <!-- 趋势统计信息 -->
+          <div class="trend-stats">
+            <el-row :gutter="16">
+              <el-col :span="12">
+                <div class="trend-stat-item">
+                  <div class="trend-label">权重波动率</div>
+                  <div class="trend-value">{{ weightVolatility }}%</div>
+                </div>
+              </el-col>
+              <el-col :span="12">
+                <div class="trend-stat-item">
+                  <div class="trend-label">调整频率</div>
+                  <div class="trend-value">{{ adjustmentFrequency }}/小时</div>
+                </div>
+              </el-col>
+            </el-row>
+          </div>
+          
+          <div ref="trendChartContainer" class="trend-chart-container">
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <!-- 实时权重监控 -->
+    <ContentCard 
+      title="实时权重监控" 
+      description="关键指标实时监控与状态展示"
+      :span="24"
+      class="real-time-monitoring"
+    >
+      <template #actions>
+        <el-button 
+          size="small" 
+          @click="refreshRealTimeData"
+          :loading="realTimeLoading"
+        >
+          <el-icon><Refresh /></el-icon>
+          刷新
+        </el-button>
+      </template>
+
+      <el-row :gutter="32">
+        <StatCard 
+          :span="6"
+          title="在线密钥"
+          :value="activeApiKeys"
+          :value-style="{ color: '#52c41a' }"
+          :icon="CircleCheck"
+          icon-color="#52c41a"
+        />
+        <StatCard 
+          :span="6"
+          title="当前请求"
+          :value="currentRequests"
+          :value-style="{ color: '#1890ff' }"
+          :icon="TrendCharts"
+          icon-color="#1890ff"
+        />
+        <StatCard 
+          :span="6"
+          title="失败次数"
+          :value="failedRequests"
+          :value-style="{ color: '#f5222d' }"
+          :icon="Close"
+          icon-color="#f5222d"
+        />
+        <StatCard 
+          :span="6"
+          title="均衡度"
+          :value="loadBalanceScoreText + '%'"
+          :value-style="{ color: getScoreColor(loadBalanceScore) }"
+          :icon="ScaleToOriginal"
+          :icon-color="getScoreColor(loadBalanceScore)"
+        />
+      </el-row>
     </ContentCard>
 
-    <!-- 第4行：可视化分析 + 智能优化建议 -->
-    <el-row :gutter="32">
-      <!-- 左侧：权重分布可视化 -->
-      <ContentCard 
-        title="权重分布可视化" 
-        description="多维度权重分布分析图表"
-        :span="12"
-      >
-          <template #actions>
-            <el-button-group size="small">
-              <el-button @click="chartType = 'pie'" :type="chartType === 'pie' ? 'primary' : ''">饼图</el-button>
-              <el-button @click="chartType = 'bar'" :type="chartType === 'bar' ? 'primary' : ''">柱状图</el-button>
-              <el-button @click="chartType = 'radar'" :type="chartType === 'radar' ? 'primary' : ''">雷达图</el-button>
-            </el-button-group>
-          </template>
 
-          <div class="chart-container">
-            <div ref="chartContainer" style="width: 100%; height: 400px;"></div>
+    <!-- 智能优化建议 -->
+    <ContentCard 
+      title="智能优化建议" 
+      description="基于性能数据的智能权重优化建议"
+      :span="24"
+    >
+        <template #actions>
+          <el-button 
+            type="primary" 
+            size="small" 
+            @click="generateOptimization"
+            :loading="optimizationLoading"
+          >
+            <el-icon><MagicStick /></el-icon>
+            生成建议
+          </el-button>
+        </template>
+
+        <div class="optimization-panel">
+          <div class="strategy-selector">
+            <el-select v-model="selectedStrategy" placeholder="选择优化策略" style="width: 100%">
+              <el-option
+                v-for="strategy in optimizationStrategies"
+                :key="strategy.value"
+                :label="strategy.label"
+                :value="strategy.value"
+              />
+            </el-select>
           </div>
-        </ContentCard>
 
-      <!-- 右侧：智能优化建议 -->
-      <ContentCard 
-        title="智能优化建议" 
-        description="基于性能数据的智能权重优化建议"
-        :span="12"
-      >
-          <template #actions>
-            <el-button 
-              type="primary" 
-              size="small" 
-              @click="generateOptimization"
-              :loading="optimizationLoading"
-            >
-              <el-icon><MagicStick /></el-icon>
-              生成建议
-            </el-button>
-          </template>
-
-          <div class="optimization-panel">
-            <div class="strategy-selector">
-              <el-select v-model="selectedStrategy" placeholder="选择优化策略" style="width: 100%">
-                <el-option
-                  v-for="strategy in optimizationStrategies"
-                  :key="strategy.value"
-                  :label="strategy.label"
-                  :value="strategy.value"
-                />
-              </el-select>
-            </div>
-
-            <div v-if="optimizationResult" class="optimization-result">
-              <div class="result-summary">
-                <div class="summary-grid">
-                  <div class="summary-item">
-                    <span class="summary-label">策略</span>
-                    <span class="summary-value">{{ getStrategyLabel(optimizationResult.strategy) }}</span>
-                  </div>
-                  <div class="summary-item">
-                    <span class="summary-label">置信度</span>
-                    <span class="summary-value">{{ (optimizationResult.confidence_score * 100).toFixed(1) }}%</span>
-                  </div>
-                  <div class="summary-item">
-                    <span class="summary-label">预期改进</span>
-                    <span class="summary-value">{{ optimizationResult.overall_improvement.toFixed(1) }}%</span>
-                  </div>
-                  <div class="summary-item">
-                    <span class="summary-label">建议数量</span>
-                    <span class="summary-value">{{ optimizationResult.recommendations.length }}</span>
-                  </div>
+          <div v-if="optimizationResult" class="optimization-result">
+            <div class="result-summary">
+              <div class="summary-grid">
+                <div class="summary-item">
+                  <span class="summary-label">策略</span>
+                  <span class="summary-value">{{ getStrategyLabel(optimizationResult.strategy) }}</span>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-label">置信度</span>
+                  <span class="summary-value">{{ (optimizationResult.confidence_score * 100).toFixed(1) }}%</span>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-label">预期改进</span>
+                  <span class="summary-value">{{ optimizationResult.overall_improvement.toFixed(1) }}%</span>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-label">建议数量</span>
+                  <span class="summary-value">{{ optimizationResult.recommendations.length }}</span>
                 </div>
               </div>
+            </div>
 
-              <div class="recommendations">
-                <div v-for="rec in optimizationResult.recommendations" :key="rec.key_id" class="recommendation-item">
-                  <div class="rec-header">
-                    <span class="key-id">{{ rec.key_id }}</span>
-                    <el-tag :type="getRiskTagType(rec.risk_level)" size="small">
-                      {{ rec.risk_level }}
-                    </el-tag>
-                  </div>
-                  <div class="rec-changes">
-                    <span class="weight-change">
-                      {{ rec.current_weight }} → {{ rec.recommended_weight }}
-                    </span>
-                    <span class="improvement">+{{ rec.expected_improvement.toFixed(1) }}%</span>
-                  </div>
-                  <div class="rec-reason">{{ rec.reason }}</div>
+            <div class="recommendations">
+              <div v-for="rec in optimizationResult.recommendations" :key="rec.key_id" class="recommendation-item">
+                <div class="rec-header">
+                  <span class="key-id">{{ rec.key_id }}</span>
+                  <el-tag :type="getRiskTagType(rec.risk_level)" size="small">
+                    {{ rec.risk_level }}
+                  </el-tag>
                 </div>
-              </div>
-
-              <div class="optimization-actions">
-                <el-button type="primary" @click="applyOptimization">
-                  <el-icon><Check /></el-icon>
-                  应用建议
-                </el-button>
-                <el-button @click="previewOptimization">
-                  <el-icon><View /></el-icon>
-                  预览效果
-                </el-button>
+                <div class="rec-changes">
+                  <span class="weight-change">
+                    {{ rec.current_weight }} → {{ rec.recommended_weight }}
+                  </span>
+                  <span class="improvement">+{{ rec.expected_improvement.toFixed(1) }}%</span>
+                </div>
+                <div class="rec-reason">{{ rec.reason }}</div>
               </div>
             </div>
 
-            <div v-else class="no-optimization">
-              <el-empty description="暂无优化建议，请选择策略并点击生成建议" />
+            <div class="optimization-actions">
+              <el-button type="primary" @click="applyOptimization">
+                <el-icon><Check /></el-icon>
+                应用建议
+              </el-button>
+              <el-button @click="previewOptimization">
+                <el-icon><View /></el-icon>
+                预览效果
+              </el-button>
             </div>
           </div>
-      </ContentCard>
-    </el-row>
+
+          <div v-else class="no-optimization">
+            <el-empty description="暂无优化建议，请选择策略并点击生成建议" />
+          </div>
+        </div>
+    </ContentCard>
 
     <!-- 第5行：权重变更审计 -->
     <ContentCard 
@@ -430,7 +503,7 @@ import ContentCard from '../components/layout/ContentCard.vue'
 import StatCard from '../components/layout/StatCard.vue'
 import {
   Key, CircleCheck, TrendCharts, ScaleToOriginal, Refresh, Check, Camera, Edit,
-  MagicStick, View, Search, Download, FolderOpened, Plus
+  MagicStick, View, Search, Download, FolderOpened, Plus, Close
 } from '@element-plus/icons-vue'
 import type {
   ApiKey, OptimizationResult, OptimizationStrategy, AuditRecord,
@@ -465,6 +538,11 @@ const savingWeights = ref(false)
 const optimizationLoading = ref(false)
 const auditLoading = ref(false)
 const snapshotsLoading = ref(false)
+const realTimeLoading = ref(false)
+
+// 实时监控数据
+const currentRequests = ref(0)
+const failedRequests = ref(0)
 
 // 智能优化相关
 const selectedStrategy = ref('Balanced')
@@ -482,6 +560,13 @@ const optimizationResult = ref<OptimizationResult | null>(null)
 const chartType = ref('pie')
 const chartContainer = ref(null)
 let chart: ECharts | null = null
+
+// 权重趋势分析相关
+const trendTimeRange = ref('24h')
+const trendChartContainer = ref(null)
+let trendChart: ECharts | null = null
+const weightVolatility = ref(8.5)
+const adjustmentFrequency = ref(2.3)
 
 // 审计相关
 const auditRecords = ref<AuditRecord[]>([])
@@ -516,6 +601,24 @@ const refreshWeights = async () => {
     ElMessage.error('刷新权重数据失败')
   } finally {
     weightsLoading.value = false
+  }
+}
+
+const refreshRealTimeData = async () => {
+  realTimeLoading.value = true
+  try {
+    // 模拟API调用获取实时数据
+    await new Promise(resolve => setTimeout(resolve, 800))
+    
+    // 模拟实时数据更新
+    currentRequests.value = Math.floor(Math.random() * 100)
+    failedRequests.value = Math.floor(Math.random() * 10)
+    
+    ElMessage.success('实时数据已刷新')
+  } catch (error) {
+    ElMessage.error('刷新实时数据失败')
+  } finally {
+    realTimeLoading.value = false
   }
 }
 
@@ -622,8 +725,21 @@ const applyBatchEdit = async () => {
 const initChart = () => {
   if (!chartContainer.value) return
   
-  chart = echarts.init(chartContainer.value)
+  // 确保容器尺寸正确
+  const container = chartContainer.value as HTMLElement
+  container.style.width = '100%'
+  container.style.height = '100%'
+  
+  chart = echarts.init(container)
   updateChart()
+  
+  // 自动调整图表大小
+  const resizeObserver = new ResizeObserver(() => {
+    if (chart) {
+      chart.resize()
+    }
+  })
+  resizeObserver.observe(container)
 }
 
 const updateChart = () => {
@@ -641,28 +757,55 @@ const updateChart = () => {
       option = {
         tooltip: {
           trigger: 'item',
-          formatter: '{a} <br/>{b}: {c} ({d}%)'
+          formatter: '{a} <br/>{b}: {c} ({d}%)',
+          backgroundColor: 'rgba(50, 50, 93, 0.9)',
+          borderColor: '#409EFF',
+          borderWidth: 1,
+          textStyle: {
+            color: '#fff',
+            fontSize: 14
+          }
+        },
+        legend: {
+          orient: 'vertical',
+          left: 'left',
+          top: 'center',
+          textStyle: {
+            color: '#606266',
+            fontSize: 14
+          }
         },
         series: [{
           name: '权重分布',
           type: 'pie',
-          radius: ['40%', '70%'],
+          radius: ['45%', '75%'],
+          center: ['60%', '50%'],
           avoidLabelOverlap: false,
           label: {
-            show: false,
-            position: 'center'
-          },
-          emphasis: {
-            label: {
-              show: true,
-              fontSize: '18',
-              fontWeight: 'bold'
-            }
+            show: true,
+            position: 'outside',
+            formatter: '{b}: {c}',
+            fontSize: 12,
+            color: '#606266'
           },
           labelLine: {
-            show: false
+            show: true,
+            length: 15,
+            length2: 10
           },
-          data
+          emphasis: {
+            itemStyle: {
+              shadowBlur: 10,
+              shadowOffsetX: 0,
+              shadowColor: 'rgba(0, 0, 0, 0.5)'
+            }
+          },
+          data,
+          itemStyle: {
+            borderRadius: 8,
+            borderColor: '#fff',
+            borderWidth: 2
+          }
         }]
       }
       break
@@ -670,22 +813,76 @@ const updateChart = () => {
     case 'bar':
       option = {
         tooltip: {
-          trigger: 'axis'
+          trigger: 'axis',
+          backgroundColor: 'rgba(50, 50, 93, 0.9)',
+          borderColor: '#409EFF',
+          borderWidth: 1,
+          textStyle: {
+            color: '#fff',
+            fontSize: 14
+          }
+        },
+        grid: {
+          left: '3%',
+          right: '4%',
+          bottom: '8%',
+          top: '10%',
+          containLabel: true
         },
         xAxis: {
           type: 'category',
-          data: data.map(item => item.name)
+          data: data.map(item => item.name),
+          axisLine: {
+            lineStyle: {
+              color: '#E4E7ED'
+            }
+          },
+          axisLabel: {
+            color: '#606266',
+            fontSize: 12
+          }
         },
         yAxis: {
           type: 'value',
-          name: '权重'
+          name: '权重',
+          nameTextStyle: {
+            color: '#606266',
+            fontSize: 14
+          },
+          axisLine: {
+            lineStyle: {
+              color: '#E4E7ED'
+            }
+          },
+          axisLabel: {
+            color: '#606266',
+            fontSize: 12
+          },
+          splitLine: {
+            lineStyle: {
+              color: '#F2F6FC',
+              type: 'dashed'
+            }
+          }
         },
         series: [{
           name: '权重',
           type: 'bar',
           data: data.map(item => item.value),
           itemStyle: {
-            color: '#409EFF'
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: '#409EFF' },
+              { offset: 1, color: '#66B3FF' }
+            ]),
+            borderRadius: [4, 4, 0, 0]
+          },
+          emphasis: {
+            itemStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: '#337ECC' },
+                { offset: 1, color: '#409EFF' }
+              ])
+            }
           }
         }]
       }
@@ -713,6 +910,163 @@ const updateChart = () => {
   }
   
   chart.setOption(option)
+}
+
+// 权重趋势分析方法
+const initTrendChart = () => {
+  if (!trendChartContainer.value) return
+  
+  const container = trendChartContainer.value as HTMLElement
+  container.style.width = '100%'
+  container.style.height = '100%'
+  
+  trendChart = echarts.init(container)
+  updateTrendChart()
+  
+  // 自动调整图表大小
+  const resizeObserver = new ResizeObserver(() => {
+    if (trendChart) {
+      trendChart.resize()
+    }
+  })
+  resizeObserver.observe(container)
+}
+
+const generateTrendData = () => {
+  const now = Date.now()
+  const timePoints = []
+  const keyData: Record<string, number[]> = {}
+  
+  // 根据时间范围生成不同的数据点
+  const ranges = {
+    '1h': { points: 12, interval: 5 * 60 * 1000 }, // 5分钟间隔
+    '6h': { points: 24, interval: 15 * 60 * 1000 }, // 15分钟间隔  
+    '24h': { points: 24, interval: 60 * 60 * 1000 } // 1小时间隔
+  }
+  
+  const config = ranges[trendTimeRange.value as keyof typeof ranges]
+  
+  // 生成时间点
+  for (let i = config.points; i >= 0; i--) {
+    timePoints.push(new Date(now - i * config.interval))
+  }
+  
+  // 为每个API密钥生成权重变化数据
+  apiKeys.value.forEach(key => {
+    keyData[key.id] = []
+    let baseWeight = key.weight
+    
+    timePoints.forEach((_, index) => {
+      // 模拟权重波动，增加一些随机变化
+      const variation = (Math.random() - 0.5) * 20 // ±10的随机变化
+      const newWeight = Math.max(0, baseWeight + variation)
+      keyData[key.id].push(Math.round(newWeight))
+      baseWeight = newWeight * 0.8 + key.weight * 0.2 // 逐渐回归原始权重
+    })
+  })
+  
+  return { timePoints, keyData }
+}
+
+const updateTrendChart = () => {
+  if (!trendChart) return
+  
+  const { timePoints, keyData } = generateTrendData()
+  
+  const series = Object.keys(keyData).map((keyId, index) => ({
+    name: keyId,
+    type: 'line',
+    data: keyData[keyId],
+    smooth: true,
+    symbol: 'circle',
+    symbolSize: 6,
+    lineStyle: {
+      width: 3
+    },
+    itemStyle: {
+      color: ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C', '#909399'][index % 5]
+    }
+  }))
+  
+  const option = {
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(50, 50, 93, 0.9)',
+      borderColor: '#409EFF',
+      borderWidth: 1,
+      textStyle: {
+        color: '#fff',
+        fontSize: 12
+      },
+      formatter: (params: any) => {
+        let result = `<div style="margin-bottom: 4px;">${params[0].axisValueLabel}</div>`
+        params.forEach((item: any) => {
+          result += `<div style="margin: 2px 0;">
+            <span style="color: ${item.color};">●</span> 
+            ${item.seriesName}: ${item.value}
+          </div>`
+        })
+        return result
+      }
+    },
+    legend: {
+      data: Object.keys(keyData),
+      textStyle: {
+        color: '#606266',
+        fontSize: 12
+      },
+      bottom: 0
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '15%',
+      top: '10%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: timePoints.map(time => time.toLocaleTimeString('zh-CN', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      })),
+      axisLine: {
+        lineStyle: {
+          color: '#E4E7ED'
+        }
+      },
+      axisLabel: {
+        color: '#606266',
+        fontSize: 11
+      }
+    },
+    yAxis: {
+      type: 'value',
+      name: '权重',
+      nameTextStyle: {
+        color: '#606266',
+        fontSize: 12
+      },
+      axisLine: {
+        lineStyle: {
+          color: '#E4E7ED'
+        }
+      },
+      axisLabel: {
+        color: '#606266',
+        fontSize: 11
+      },
+      splitLine: {
+        lineStyle: {
+          color: '#F2F6FC',
+          type: 'dashed'
+        }
+      }
+    },
+    series
+  }
+  
+  trendChart.setOption(option)
 }
 
 // 工具方法
@@ -889,9 +1243,16 @@ onMounted(async () => {
     { id: 'key-004', weight: 120, enabled: true }
   ]
   
+  // 初始化实时监控数据
+  currentRequests.value = 0
+  failedRequests.value = 0
+  
   // 初始化图表
   await nextTick()
-  initChart()
+  setTimeout(() => {
+    initChart()
+    initTrendChart()
+  }, 100)
   
   // 加载审计记录
   auditRecords.value = [
@@ -925,33 +1286,202 @@ onMounted(async () => {
 watch(chartType, () => {
   updateChart()
 })
+
+// 监听趋势图表时间范围变化
+watch(trendTimeRange, () => {
+  updateTrendChart()
+})
 </script>
 
 <style scoped>
-/* 页面整体布局 */
-.overview-stats {
-  margin-bottom: var(--spacing-extra-large);
-}
-
-.config-monitoring-section {
-  margin-bottom: var(--spacing-extra-large);
-}
-
-.analysis-optimization-section {
-  margin-bottom: var(--spacing-extra-large);
-}
-
+/* 页面整体布局优化 - 专业级设计系统 */
+.overview-stats,
+.config-monitoring-section,
+.analysis-optimization-section,
 .audit-section {
   margin-bottom: var(--spacing-extra-large);
 }
 
-/* 统计卡片网格 */
+/* 页面级统一间距和视觉层次 */
+.app-page > * {
+  margin-bottom: var(--spacing-extra-large);
+}
+
+.app-page > *:last-child {
+  margin-bottom: 0;
+}
+
+/* 统计卡片网格 - 确保一致的间距 */
 .overview-stats .el-col {
   margin-bottom: var(--spacing-medium);
 }
 
-/* 权重配置管理区域 */
+/* 统一卡片容器样式 */
+.el-card {
+  border-radius: var(--border-radius-base);
+  border: 1px solid var(--border-color-light);
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  transition: all var(--transition-duration-base) var(--transition-function);
+}
 
+.el-card:hover {
+  box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+/* 统一卡片头部样式 */
+.el-card__header {
+  background-color: var(--bg-color);
+  border-bottom: 1px solid var(--border-color-lighter);
+  border-radius: var(--border-radius-base) var(--border-radius-base) 0 0;
+}
+
+/* 统一按钮组样式 */
+.el-button-group {
+  border-radius: var(--border-radius-base);
+  overflow: hidden;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.el-button-group .el-button {
+  border-radius: 0;
+  border-left: none;
+}
+
+.el-button-group .el-button:first-child {
+  border-left: 1px solid var(--border-color);
+  border-radius: var(--border-radius-base) 0 0 var(--border-radius-base);
+}
+
+.el-button-group .el-button:last-child {
+  border-radius: 0 var(--border-radius-base) var(--border-radius-base) 0;
+}
+
+/* 实时监控卡片样式 - 专业级视觉优化 */
+.real-time-monitoring {
+  margin-bottom: var(--spacing-extra-large);
+  position: relative;
+}
+
+.real-time-monitoring::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, 
+    var(--color-primary) 0%, 
+    var(--color-success) 25%, 
+    var(--color-warning) 50%, 
+    var(--color-danger) 75%, 
+    var(--color-info) 100%);
+  border-radius: var(--border-radius-base) var(--border-radius-base) 0 0;
+  z-index: 1;
+}
+
+.real-time-monitoring .el-row {
+  margin: 0 -16px; /* 确保gutter正确应用 */
+}
+
+.real-time-monitoring .el-col {
+  padding: 0 16px; /* 与gutter="32"配合 */
+  margin-bottom: 0; /* 移除默认底部间距 */
+}
+
+/* StatCard 悬停增强效果 */
+.real-time-monitoring .stat-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+}
+
+/* 权重分析模块 - 符合Element Plus设计标准的等高布局 */
+.weight-analysis-row {
+  margin-bottom: var(--spacing-extra-large);
+}
+
+.weight-analysis-row .el-col {
+  display: flex;
+  align-items: stretch;
+}
+
+.chart-card {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 600px;
+}
+
+.chart-card .el-card__header {
+  flex-shrink: 0;
+  min-height: 80px;
+}
+
+.chart-card .el-card__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-large);
+}
+
+/* 权重分布图表容器 */
+.chart-container {
+  width: 100%;
+  flex: 1;
+  min-height: 480px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 权重趋势分析容器 */
+.trend-stats {
+  flex-shrink: 0;
+  margin-bottom: var(--spacing-medium);
+  padding: var(--spacing-medium);
+  background-color: var(--bg-color-page);
+  border-radius: var(--border-radius-base);
+  border: 1px solid var(--border-color-lighter);
+}
+
+.trend-stat-item {
+  text-align: center;
+}
+
+.trend-label {
+  font-size: var(--font-size-small);
+  color: var(--text-color-secondary);
+  margin-bottom: var(--spacing-mini);
+  font-weight: var(--font-weight-medium);
+}
+
+.trend-value {
+  font-size: var(--font-size-medium);
+  color: var(--text-color-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.trend-chart-container {
+  width: 100%;
+  flex: 1;
+  min-height: 380px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 图表加载状态 */
+.chart-loading {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+}
+
+/* 权重配置管理区域 - Element Plus设计优化 */
 .weight-management {
   margin-bottom: var(--spacing-large);
 }
@@ -961,10 +1491,19 @@ watch(chartType, () => {
   align-items: center;
   padding: var(--spacing-medium) 0;
   border-bottom: 1px solid var(--border-color-lighter);
+  transition: background-color var(--transition-duration-base) var(--transition-function);
 }
 
 .weight-item:last-child {
   border-bottom: none;
+}
+
+.weight-item:hover {
+  background-color: var(--bg-color-page);
+  border-radius: var(--border-radius-base);
+  margin: 0 calc(-1 * var(--spacing-small));
+  padding-left: var(--spacing-small);
+  padding-right: var(--spacing-small);
 }
 
 .weight-info {
@@ -977,6 +1516,7 @@ watch(chartType, () => {
 .key-name {
   font-weight: var(--font-weight-medium);
   color: var(--text-color-primary);
+  font-size: var(--font-size-base);
 }
 
 .weight-control {
@@ -1098,34 +1638,8 @@ watch(chartType, () => {
   height: 300px;
 }
 
-/* 可视化图表容器 */
+/* 图表容器 - 符合Element Plus标准的简化样式 */
 
-.chart-container {
-  padding: var(--spacing-large) 0;
-}
-
-.load-status {
-  padding: var(--spacing-small) 0;
-}
-
-.load-item {
-  margin-bottom: var(--spacing-large);
-}
-
-.load-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--spacing-small);
-}
-
-.load-stats {
-  display: flex;
-  justify-content: space-between;
-  font-size: var(--font-size-extra-small);
-  color: var(--text-color-secondary);
-  margin-top: var(--spacing-mini);
-}
 
 /* 审计表格区域 */
 .audit-content {
@@ -1166,58 +1680,7 @@ watch(chartType, () => {
   text-align: right;
 }
 
-/* 响应式布局优化 */
-@media (max-width: 1200px) {
-  .overview-stats .el-col {
-    margin-bottom: var(--spacing-large);
-  }
-  
-  .config-monitoring-section .el-col,
-  .analysis-optimization-section .el-col {
-    margin-bottom: var(--spacing-large);
-  }
-  
-  .overview-stats .el-col {
-    flex: 0 0 50%;
-    max-width: 50%;
-  }
-}
+/* 桌面端专用样式 - 符合UI设计标准 */
 
-@media (max-width: 768px) {
-  .overview-stats .el-col {
-    flex: 0 0 100%;
-    max-width: 100%;
-  }
-  
-  .config-monitoring-section .el-col,
-  .analysis-optimization-section .el-col {
-    flex: 0 0 100%;
-    max-width: 100%;
-  }
-  
-  .header-actions {
-    flex-direction: column;
-    gap: var(--spacing-mini);
-  }
-  
-  .summary-grid {
-    grid-template-columns: 1fr;
-    gap: var(--spacing-small);
-    padding: var(--spacing-small);
-  }
-  
-  .weight-info {
-    flex: 0 0 auto;
-    margin-bottom: var(--spacing-small);
-  }
-  
-  .weight-control {
-    margin-left: 0;
-  }
-  
-  .weight-item {
-    flex-direction: column;
-    align-items: stretch;
-  }
-}
+/* Element Plus 标准交互效果 - 保持简洁 */
 </style>

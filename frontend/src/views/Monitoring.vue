@@ -12,7 +12,7 @@
     
     <!-- 实时状态概览 -->
     <ContentCard title="服务状态概览" :span="24">
-      <el-row :gutter="24">
+      <el-row :gutter="32">
         <StatCard 
           :span="8"
           title="服务状态"
@@ -25,7 +25,7 @@
           :span="8"
           title="最后检查"
           :value="lastCheckTime"
-          :value-style="{ fontSize: '16px' }"
+          :value-style="{ color: '#67c23a' }"
           :icon="Clock"
           icon-color="#67c23a"
         />
@@ -33,6 +33,7 @@
           :span="8"
           title="检查项目"
           :value="healthCheckData.length"
+          :value-style="{ color: '#e6a23c' }"
           :icon="List"
           icon-color="#e6a23c"
         />

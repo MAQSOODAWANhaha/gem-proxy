@@ -101,42 +101,69 @@ body {
   box-shadow: var(--box-shadow-dark);
 }
 
-/* 统计卡片内部布局优化 */
-.stat-card .el-card__body {
-  padding: var(--stat-card-padding);
-  display: flex;
-  align-items: center;
-  min-height: 80px;
+/* 清理所有复杂的!important覆盖规则 */
+/* 为重构StatCard组件做准备 */
+
+/* Element Plus StatCard 最佳实践样式 */
+/* 基于官方推荐的简洁设计原则 */
+
+/* StatCard 容器样式 - 使用 Element Plus 推荐方式 */
+.stat-card {
+  height: 140px;
+  transition: transform var(--transition-duration-base) var(--transition-function), 
+              box-shadow var(--transition-duration-base) var(--transition-function);
+  cursor: default;
 }
 
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--box-shadow-dark);
+}
+
+/* el-statistic 组件优化 - 确保内容居中对齐 */
 .stat-card .el-statistic {
   width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
 }
 
 .stat-card .el-statistic__head {
-  font-size: var(--font-size-small);
+  font-size: 12px;
   color: var(--text-color-regular);
-  margin-bottom: var(--spacing-small);
-  font-weight: var(--font-weight-medium);
-  line-height: var(--line-height-tight);
+  margin-bottom: 8px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  text-align: center;
 }
 
 .stat-card .el-statistic__content {
   display: flex;
   align-items: center;
-  gap: var(--spacing-base);
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
 }
 
 .stat-card .el-statistic__number {
-  font-size: 24px;
-  font-weight: var(--font-weight-semibold);
-  color: var(--text-color-primary);
-  line-height: 1;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-card .el-icon {
   font-size: 20px;
   opacity: 0.8;
+  flex-shrink: 0;
 }
 
 .card-header {

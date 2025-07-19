@@ -31,7 +31,7 @@
         <div class="form-section">
           <h3 class="section-title">服务器配置</h3>
         
-        <el-row :gutter="20">
+        <el-row :gutter="32">
           <el-col :span="12">
             <el-form-item label="监听地址" prop="server.host">
               <el-input 
@@ -52,7 +52,7 @@
           </el-col>
         </el-row>
         
-        <el-row :gutter="20">
+        <el-row :gutter="32">
           <el-col :span="12">
             <el-form-item label="工作进程" prop="server.workers">
               <el-input-number 
@@ -81,7 +81,7 @@
         <div class="form-section">
           <h3 class="section-title">Gemini API 配置</h3>
         
-        <el-row :gutter="20">
+        <el-row :gutter="32">
           <el-col :span="16">
             <el-form-item label="API 基础地址" prop="gemini.base_url">
               <el-input 
@@ -168,7 +168,7 @@
         </el-form-item>
         
         <template v-if="localConfig.server.tls.enabled">
-          <el-row :gutter="20">
+          <el-row :gutter="32">
             <el-col :span="12">
               <el-form-item label="证书文件路径" prop="server.tls.cert_path">
                 <el-input 

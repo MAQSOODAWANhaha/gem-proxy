@@ -24,7 +24,7 @@
           <h3>TLS 基本设置</h3>
         </el-divider>
         
-        <el-row :gutter="24">
+        <el-row :gutter="32">
           <el-col :span="8">
             <el-form-item label="启用 TLS">
               <el-switch 
@@ -57,7 +57,7 @@
           <h3>ACME 自动证书</h3>
         </el-divider>
         
-        <el-row :gutter="24">
+        <el-row :gutter="32">
           <el-col :span="8">
             <el-form-item label="启用 ACME">
               <el-switch 
@@ -95,7 +95,7 @@
         </el-row>
         
         <!-- 域名管理区域 -->
-        <el-row v-if="acmeEnabled && localConfig.server.tls.acme" :gutter="24">
+        <el-row v-if="acmeEnabled && localConfig.server.tls.acme" :gutter="32">
           <el-col :span="24">
             <el-form-item label="域名列表">
               <div class="domain-management">

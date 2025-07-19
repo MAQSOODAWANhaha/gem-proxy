@@ -12,11 +12,12 @@
 
     <!-- API 密钥统计概览 -->
     <ContentCard title="API 密钥统计概览" :span="24">
-      <el-row :gutter="24">
+      <el-row :gutter="32">
         <StatCard 
           :span="6"
           title="总密钥数"
           :value="apiKeys.length"
+          :value-style="{ color: '#409eff' }"
           :icon="Key"
           icon-color="#409eff"
         />
@@ -24,6 +25,7 @@
           :span="6"
           title="活跃密钥"
           :value="activeKeysCount"
+          :value-style="{ color: '#67c23a' }"
           :icon="CircleCheckFilled"
           icon-color="#67c23a"
         />
@@ -31,6 +33,7 @@
           :span="6"
           title="总权重"
           :value="totalWeight"
+          :value-style="{ color: '#e6a23c' }"
           :icon="ScaleToOriginal"
           icon-color="#e6a23c"
         />
@@ -38,6 +41,7 @@
           :span="6"
           title="每分钟限额"
           :value="totalRateLimit"
+          :value-style="{ color: '#f56c6c' }"
           :icon="TrendCharts"
           icon-color="#f56c6c"
         />
@@ -67,7 +71,7 @@
       </template>
 
       <!-- 权重分配图表 -->
-      <el-row :gutter="20">
+      <el-row :gutter="32">
         <el-col :xs="24" :sm="24" :md="12" :lg="12" :xl="12">
           <div class="chart-container chart-responsive">
             <h4>权重分配比例</h4>
