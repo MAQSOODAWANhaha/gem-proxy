@@ -1,51 +1,55 @@
 <template>
-  <div class="load-balancing">
-    <el-page-header @back="$router.go(-1)" title="负载均衡管理">
-      <template #content>
-        <span class="text-large font-600 mr-3">负载均衡管理中心</span>
-      </template>
-    </el-page-header>
-
-    <div class="page-container">
-      <!-- 概览统计卡片 -->
-      <el-row :gutter="20" class="stats-cards">
-        <el-col :span="6">
-          <el-card shadow="hover" class="stat-card">
-            <div class="stat-content">
-              <div class="stat-number">{{ totalApiKeys }}</div>
-              <div class="stat-label">API Keys 总数</div>
-              <el-icon class="stat-icon" :size="32" color="#409EFF"><Key /></el-icon>
-            </div>
-          </el-card>
-        </el-col>
-        <el-col :span="6">
-          <el-card shadow="hover" class="stat-card">
-            <div class="stat-content">
-              <div class="stat-number">{{ activeApiKeys }}</div>
-              <div class="stat-label">活跃 Keys</div>
-              <el-icon class="stat-icon" :size="32" color="#67C23A"><CircleCheck /></el-icon>
-            </div>
-          </el-card>
-        </el-col>
-        <el-col :span="6">
-          <el-card shadow="hover" class="stat-card">
-            <div class="stat-content">
-              <div class="stat-number">{{ totalWeight }}</div>
-              <div class="stat-label">总权重</div>
-              <el-icon class="stat-icon" :size="32" color="#E6A23C"><TrendCharts /></el-icon>
-            </div>
-          </el-card>
-        </el-col>
-        <el-col :span="6">
-          <el-card shadow="hover" class="stat-card">
-            <div class="stat-content">
-              <div class="stat-number">{{ loadBalanceScore }}</div>
-              <div class="stat-label">负载均衡评分</div>
-              <el-icon class="stat-icon" :size="32" color="#F56C6C"><TrendCharts /></el-icon>
-            </div>
-          </el-card>
-        </el-col>
+  <AppPage 
+    title="负载均衡管理" 
+    description="智能权重配置与负载均衡策略管理中心"
+  >
+    <template #actions>
+      <el-button 
+        type="primary" 
+        @click="refreshWeights"
+        :loading="weightsLoading"
+      >
+        <el-icon><Refresh /></el-icon>
+        刷新数据
+      </el-button>
+    </template>
+    
+    <!-- 负载均衡概览 -->
+    <ContentCard title="负载均衡概览" :span="24">
+      <el-row :gutter="24">
+        <StatCard
+          title="API Keys 总数"
+          :value="totalApiKeys"
+          :icon="Key"
+          icon-color="var(--color-primary)"
+          :span="6"
+        />
+        
+        <StatCard
+          title="活跃 Keys"
+          :value="activeApiKeys"
+          :icon="CircleCheck"
+          icon-color="var(--color-success)"
+          :span="6"
+        />
+        
+        <StatCard
+          title="总权重"
+          :value="totalWeight"
+          :icon="TrendCharts"
+          icon-color="var(--color-warning)"
+          :span="6"
+        />
+        
+        <StatCard
+          title="负载均衡评分"
+          :value="loadBalanceScore"
+          :icon="TrendCharts"
+          icon-color="var(--color-danger)"
+          :span="6"
+        />
       </el-row>
+    </ContentCard>
 
       <!-- 主要功能面板 -->
       <el-row :gutter="20" class="main-panels">
@@ -319,7 +323,6 @@
           </el-card>
         </el-col>
       </el-row>
-    </div>
 
     <!-- 批量编辑对话框 -->
     <el-dialog
@@ -403,7 +406,7 @@
         </el-table>
       </div>
     </el-dialog>
-  </div>
+  </AppPage>
 </template>
 
 <script setup lang="ts">
@@ -411,6 +414,9 @@ import { ref, reactive, onMounted, nextTick, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import * as echarts from 'echarts'
 import type { ECharts } from 'echarts'
+import AppPage from '../components/layout/AppPage.vue'
+import ContentCard from '../components/layout/ContentCard.vue'
+import StatCard from '../components/layout/StatCard.vue'
 import {
   Key, CircleCheck, TrendCharts, Refresh, Check, Camera, Edit,
   MagicStick, View, Search, Download, FolderOpened, Plus
@@ -903,7 +909,7 @@ watch(chartType, () => {
 
 <style scoped>
 .load-balancing {
-  padding: 20px;
+  padding: var(--spacing-large);
 }
 
 .page-container {
@@ -911,50 +917,14 @@ watch(chartType, () => {
   margin: 0 auto;
 }
 
-.stats-cards {
-  margin-bottom: 20px;
-}
-
-.stat-card {
-  border-radius: 8px;
-  transition: all 0.3s ease;
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-}
-
-.stat-content {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 0;
-}
-
-.stat-number {
-  font-size: 28px;
-  font-weight: bold;
-  color: #303133;
-  line-height: 1;
-}
-
-.stat-label {
-  font-size: 14px;
-  color: #909399;
-  margin-top: 5px;
-}
-
-.stat-icon {
-  opacity: 0.8;
-}
+/* 统计卡片样式由 StatCard 组件处理，使用设计变量 */
 
 .main-panels {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-extra-large);
 }
 
 .panel-card {
-  border-radius: 8px;
+  border-radius: var(--border-radius-large);
   min-height: 500px;
 }
 
@@ -966,18 +936,20 @@ watch(chartType, () => {
 
 .card-header h3 {
   margin: 0;
-  color: #303133;
+  color: var(--text-color-primary);
+  font-size: var(--font-size-medium);
+  font-weight: var(--font-weight-semibold);
 }
 
 .weight-management {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-large);
 }
 
 .weight-item {
   display: flex;
   align-items: center;
-  padding: 15px 0;
-  border-bottom: 1px solid #EBEEF5;
+  padding: var(--spacing-medium) 0;
+  border-bottom: 1px solid var(--border-color-lighter);
 }
 
 .weight-item:last-child {
@@ -992,32 +964,32 @@ watch(chartType, () => {
 }
 
 .key-name {
-  font-weight: 500;
-  color: #303133;
+  font-weight: var(--font-weight-medium);
+  color: var(--text-color-primary);
 }
 
 .weight-control {
   flex: 1;
   display: flex;
   align-items: center;
-  margin-left: 20px;
+  margin-left: var(--spacing-large);
 }
 
 .weight-slider {
   flex: 1;
-  margin-right: 15px;
+  margin-right: var(--spacing-medium);
 }
 
 .weight-value {
   flex: 0 0 50px;
   text-align: center;
-  font-weight: bold;
-  color: #409EFF;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary);
 }
 
 .panel-actions {
-  padding-top: 15px;
-  border-top: 1px solid #EBEEF5;
+  padding-top: var(--spacing-medium);
+  border-top: 1px solid var(--border-color-lighter);
 }
 
 .optimization-panel {
@@ -1025,59 +997,59 @@ watch(chartType, () => {
 }
 
 .strategy-selector {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-large);
 }
 
 .result-summary {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-large);
 }
 
 .recommendations {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-large);
   max-height: 300px;
   overflow-y: auto;
 }
 
 .recommendation-item {
-  padding: 15px;
-  border: 1px solid #EBEEF5;
-  border-radius: 6px;
-  margin-bottom: 10px;
-  background-color: #FAFBFC;
+  padding: var(--spacing-medium);
+  border: 1px solid var(--border-color-lighter);
+  border-radius: var(--border-radius-base);
+  margin-bottom: var(--spacing-small);
+  background-color: var(--bg-color-page);
 }
 
 .rec-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: var(--spacing-small);
 }
 
 .key-id {
-  font-weight: 500;
-  color: #303133;
+  font-weight: var(--font-weight-medium);
+  color: var(--text-color-primary);
 }
 
 .rec-changes {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: var(--spacing-small);
 }
 
 .weight-change {
-  color: #409EFF;
-  font-weight: 500;
+  color: var(--color-primary);
+  font-weight: var(--font-weight-medium);
 }
 
 .improvement {
-  color: #67C23A;
-  font-weight: 500;
+  color: var(--color-success);
+  font-weight: var(--font-weight-medium);
 }
 
 .rec-reason {
-  font-size: 12px;
-  color: #909399;
+  font-size: var(--font-size-extra-small);
+  color: var(--text-color-secondary);
 }
 
 .no-optimization {
@@ -1088,83 +1060,83 @@ watch(chartType, () => {
 }
 
 .monitoring-section {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-large);
 }
 
 .chart-container {
-  padding: 20px 0;
+  padding: var(--spacing-large) 0;
 }
 
 .load-status {
-  padding: 10px 0;
+  padding: var(--spacing-small) 0;
 }
 
 .load-item {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-large);
 }
 
 .load-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: var(--spacing-small);
 }
 
 .load-stats {
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
-  color: #909399;
-  margin-top: 5px;
+  font-size: var(--font-size-extra-small);
+  color: var(--text-color-secondary);
+  margin-top: var(--spacing-mini);
 }
 
 .audit-section {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-large);
 }
 
 .header-actions {
   display: flex;
-  gap: 10px;
+  gap: var(--spacing-small);
 }
 
 .audit-content {
-  padding: 10px 0;
+  padding: var(--spacing-small) 0;
 }
 
 .pagination {
-  margin-top: 20px;
+  margin-top: var(--spacing-large);
   text-align: center;
 }
 
 .batch-edit-content {
-  padding: 20px 0;
+  padding: var(--spacing-large) 0;
 }
 
 .input-suffix {
-  margin-left: 10px;
-  color: #909399;
+  margin-left: var(--spacing-small);
+  color: var(--text-color-secondary);
 }
 
 .snapshots-content {
-  padding: 10px 0;
+  padding: var(--spacing-small) 0;
 }
 
 .snapshots-header {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-large);
   text-align: right;
 }
 
 @media (max-width: 1200px) {
   .stats-cards .el-col {
-    margin-bottom: 20px;
+    margin-bottom: var(--spacing-large);
   }
   
   .main-panels .el-col {
-    margin-bottom: 20px;
+    margin-bottom: var(--spacing-large);
   }
   
   .monitoring-section .el-col {
-    margin-bottom: 20px;
+    margin-bottom: var(--spacing-large);
   }
 }
 </style>
